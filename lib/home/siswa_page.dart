@@ -14,15 +14,13 @@ class _SplashScreenState extends State<SplashScreen>
   final service = SupabaseService();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
+
   int currentStep = 0;
   final PageController _pageController = PageController();
 
   // Controllers
   final TextEditingController nisnC = TextEditingController();
   final TextEditingController namaC = TextEditingController();
-  final TextEditingController jkC = TextEditingController();
-  final TextEditingController agamaC = TextEditingController();
   final TextEditingController tempatLahirC = TextEditingController();
   final TextEditingController tanggalLahirC = TextEditingController();
   final TextEditingController noHpC = TextEditingController();
@@ -34,17 +32,40 @@ class _SplashScreenState extends State<SplashScreen>
   final TextEditingController kabupatenC = TextEditingController();
   final TextEditingController provinsiC = TextEditingController();
   final TextEditingController kodePosC = TextEditingController();
+  final TextEditingController kecamatanC = TextEditingController();
   final TextEditingController ayahC = TextEditingController();
   final TextEditingController ibuC = TextEditingController();
   final TextEditingController waliC = TextEditingController();
-  final TextEditingController alamatOrtuC = TextEditingController();
+  final TextEditingController dusunOrtuC = TextEditingController();
+  final TextEditingController desaOrtuC = TextEditingController();
+  final TextEditingController kecamatanOrtuC = TextEditingController();
+  final TextEditingController kabupatenOrtuC = TextEditingController();
+  final TextEditingController provinsiOrtuC = TextEditingController();
+  final TextEditingController kodePosOrtuC = TextEditingController();
 
   // Dropdown values
   String? selectedJenisKelamin;
   String? selectedAgama;
 
+  // Auto-complete variables
+  List<Map<String, dynamic>> dusunSuggestions = [];
+  List<Map<String, dynamic>> ortuSuggestions = [];
+  bool isLoadingSuggestions = false;
+  OverlayEntry? _overlayEntry;
+  final LayerLink _layerLink = LayerLink();
+  final LayerLink _ortuLayerLink = LayerLink();
+  final FocusNode dusunFocusNode = FocusNode();
+  final FocusNode ortuFocusNode = FocusNode();
+
   final List<String> jenisKelamin = ['Laki-laki', 'Perempuan'];
-  final List<String> agamaList = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'];
+  final List<String> agamaList = [
+    'Islam',
+    'Kristen',
+    'Katolik',
+    'Hindu',
+    'Buddha',
+    'Konghucu',
+  ];
 
   @override
   void initState() {
@@ -63,12 +84,13 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _animationController.dispose();
     _pageController.dispose();
-    
+    dusunFocusNode.dispose();
+    ortuFocusNode.dispose();
+    _hideOverlay();
+
     // Dispose all controllers
     nisnC.dispose();
     namaC.dispose();
-    jkC.dispose();
-    agamaC.dispose();
     tempatLahirC.dispose();
     tanggalLahirC.dispose();
     noHpC.dispose();
@@ -80,36 +102,505 @@ class _SplashScreenState extends State<SplashScreen>
     kabupatenC.dispose();
     provinsiC.dispose();
     kodePosC.dispose();
+    kecamatanC.dispose();
     ayahC.dispose();
     ibuC.dispose();
     waliC.dispose();
-    alamatOrtuC.dispose();
-    
+    dusunOrtuC.dispose();
+    desaOrtuC.dispose();
+    kecamatanOrtuC.dispose();
+    kabupatenOrtuC.dispose();
+    provinsiOrtuC.dispose();
+    kodePosOrtuC.dispose();
+
     super.dispose();
+  }
+
+  // Show overlay suggestions untuk dusun siswa
+  void _showOverlay() {
+    _hideOverlay();
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: CompositedTransformFollower(
+          link: _layerLink,
+          showWhenUnlinked: false,
+          offset: const Offset(0, 50),
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 200),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: isLoadingSuggestions
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 12),
+                          Text('Mencari dusun...'),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: dusunSuggestions.length,
+                      itemBuilder: (context, index) {
+                        final dusun = dusunSuggestions[index];
+                        return InkWell(
+                          onTap: () {
+                            debugPrint(
+                              'Dusun clicked at index $index: ${dusun.toString()}',
+                            );
+                            _fillAlamatFromDusun(dusun);
+                            debugPrint(
+                              'Calling _fillAlamatFromDusun for dusun: ${dusun['dusun']}',
+                            );
+                          },
+                          splashColor: Colors.blue.withValues(alpha: 0.2),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        dusun['dusun']?.toString() ??
+                                            'Tidak diketahui',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    if (dusun['kode_pos'] != null)
+                                      Chip(
+                                        label: Text(
+                                          dusun['kode_pos'].toString(),
+                                          style: const TextStyle(fontSize: 10),
+                                        ),
+                                        backgroundColor: Colors.blue.shade50,
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${dusun['desa']?.toString() ?? ''}, ${dusun['kecamatan']?.toString() ?? ''}\n${dusun['kabupaten']?.toString() ?? ''}, ${dusun['provinsi']?.toString() ?? ''}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+    debugPrint('Overlay shown with ${dusunSuggestions.length} suggestions');
+  }
+
+  // Show overlay untuk alamat orang tua
+  void _showOverlayOrtu() {
+    _hideOverlay();
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: CompositedTransformFollower(
+          link: _ortuLayerLink,
+          showWhenUnlinked: false,
+          offset: const Offset(0, 50),
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 200),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: isLoadingSuggestions
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 12),
+                          Text('Mencari dusun...'),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: ortuSuggestions.length,
+                      itemBuilder: (context, index) {
+                        final dusun = ortuSuggestions[index];
+                        return InkWell(
+                          onTap: () {
+                            debugPrint('Ortu dusun clicked at index $index: ${dusun.toString()}');
+                            _fillAlamatFromOrtu(dusun);
+                            debugPrint('Calling _fillAlamatFromOrtu for dusun: ${dusun['dusun']}');
+                          },
+                          splashColor: Colors.blue.withValues(alpha: 0.2),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        dusun['dusun']?.toString() ?? 'Tidak diketahui',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    if (dusun['kode_pos'] != null)
+                                      Chip(
+                                        label: Text(
+                                          dusun['kode_pos'].toString(),
+                                          style: const TextStyle(fontSize: 10),
+                                        ),
+                                        backgroundColor: Colors.blue.shade50,
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${dusun['desa']?.toString() ?? ''}, ${dusun['kecamatan']?.toString() ?? ''}\n${dusun['kabupaten']?.toString() ?? ''}, ${dusun['provinsi']?.toString() ?? ''}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+    debugPrint('Ortu overlay shown with ${ortuSuggestions.length} suggestions');
+  }
+
+  // Hide overlay
+  void _hideOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    debugPrint('Overlay hidden');
+  }
+
+  // Auto-fill alamat siswa berdasarkan pilihan dusun
+  void _fillAlamatFromDusun(Map<String, dynamic> selectedDusun) {
+    debugPrint('=== _fillAlamatFromDusun called ===');
+    debugPrint('Selected dusun data: ${selectedDusun.toString()}');
+    debugPrint('Keys in selectedDusun: ${selectedDusun.keys.toList()}');
+
+    setState(() {
+      dusunC.text = selectedDusun['dusun']?.toString() ?? '';
+      desaC.text = selectedDusun['desa']?.toString() ?? '';
+      kecamatanC.text = selectedDusun['kecamatan']?.toString() ?? '';
+      kabupatenC.text = selectedDusun['kabupaten']?.toString() ?? '';
+      provinsiC.text = selectedDusun['provinsi'].toString().replaceAll('_', ' ');
+      kodePosC.text = selectedDusun['kode_pos']?.toString() ?? '';
+      debugPrint('Field values set:');
+      debugPrint('dusun=${dusunC.text}');
+      debugPrint('desa=${desaC.text}');
+      debugPrint('kecamatan=${kecamatanC.text}');
+      debugPrint('kabupaten=${kabupatenC.text}');
+      debugPrint('provinsi=${provinsiC.text}');
+      debugPrint('kodePos=${kodePosC.text}');
+      dusunC.selection = TextSelection.fromPosition(
+        TextPosition(offset: dusunC.text.length),
+      );
+      desaC.selection = TextSelection.fromPosition(
+        TextPosition(offset: desaC.text.length),
+      );
+      kecamatanC.selection = TextSelection.fromPosition(
+        TextPosition(offset: kecamatanC.text.length),
+      );
+      kabupatenC.selection = TextSelection.fromPosition(
+        TextPosition(offset: kabupatenC.text.length),
+      );
+      provinsiC.selection = TextSelection.fromPosition(
+        TextPosition(offset: provinsiC.text.length),
+      );
+      kodePosC.selection = TextSelection.fromPosition(
+        TextPosition(offset: kodePosC.text.length),
+      );
+    });
+
+    _hideOverlay();
+    dusunFocusNode.unfocus();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Alamat berhasil diisi otomatis untuk ${selectedDusun['dusun'].toString()}',
+        ),
+        duration: const Duration(seconds: 2),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // Auto-fill alamat orang tua berdasarkan pilihan dusun
+  void _fillAlamatFromOrtu(Map<String, dynamic> selectedDusun) {
+    debugPrint('=== _fillAlamatFromOrtu called ===');
+    debugPrint('Selected ortu dusun data: ${selectedDusun.toString()}');
+    debugPrint('Keys in selectedDusun: ${selectedDusun.keys.toList()}');
+
+    setState(() {
+      dusunOrtuC.text = selectedDusun['dusun']?.toString() ?? '';
+      desaOrtuC.text = selectedDusun['desa']?.toString() ?? '';
+      kecamatanOrtuC.text = selectedDusun['kecamatan']?.toString() ?? '';
+      kabupatenOrtuC.text = selectedDusun['kabupaten']?.toString() ?? '';
+      provinsiOrtuC.text = selectedDusun['provinsi'].toString().replaceAll('_', ' ');
+      kodePosOrtuC.text = selectedDusun['kode_pos']?.toString() ?? '';
+      debugPrint('Ortu field values set:');
+      debugPrint('dusun=${dusunOrtuC.text}');
+      debugPrint('desa=${desaOrtuC.text}');
+      debugPrint('kecamatan=${kecamatanOrtuC.text}');
+      debugPrint('kabupaten=${kabupatenOrtuC.text}');
+      debugPrint('provinsi=${provinsiOrtuC.text}');
+      debugPrint('kodePos=${kodePosOrtuC.text}');
+      dusunOrtuC.selection = TextSelection.fromPosition(
+        TextPosition(offset: dusunOrtuC.text.length),
+      );
+      desaOrtuC.selection = TextSelection.fromPosition(
+        TextPosition(offset: desaOrtuC.text.length),
+      );
+      kecamatanOrtuC.selection = TextSelection.fromPosition(
+        TextPosition(offset: kecamatanOrtuC.text.length),
+      );
+      kabupatenOrtuC.selection = TextSelection.fromPosition(
+        TextPosition(offset: kabupatenOrtuC.text.length),
+      );
+      provinsiOrtuC.selection = TextSelection.fromPosition(
+        TextPosition(offset: provinsiOrtuC.text.length),
+      );
+      kodePosOrtuC.selection = TextSelection.fromPosition(
+        TextPosition(offset: kodePosOrtuC.text.length),
+      );
+    });
+
+    _hideOverlay();
+    ortuFocusNode.unfocus();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Alamat orang tua berhasil diisi otomatis untuk ${selectedDusun['dusun'].toString()}',
+        ),
+        duration: const Duration(seconds: 2),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // Search dusun dengan debounce
+  Future<void> _searchDusun(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        dusunSuggestions = [];
+      });
+      _hideOverlay();
+      return;
+    }
+
+    setState(() => isLoadingSuggestions = true);
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final results = await service.searchDusun(query);
+
+      debugPrint('Raw search results: $results');
+      for (var result in results) {
+        debugPrint('Dusun entry: ${result.toString()}');
+        debugPrint('Keys available: ${result.keys.toList()}');
+      }
+
+      _debugDusunData(results);
+
+      if (mounted) {
+        setState(() {
+          dusunSuggestions = results;
+          isLoadingSuggestions = false;
+          debugPrint(
+            'Updated dusunSuggestions with ${dusunSuggestions.length} items',
+          );
+        });
+
+        if (dusunSuggestions.isNotEmpty) {
+          _showOverlay();
+        } else {
+          _hideOverlay();
+          if (query.length > 2) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Tidak ada dusun yang ditemukan'),
+                duration: Duration(seconds: 2),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error searching dusun: $e');
+      if (mounted) {
+        setState(() => isLoadingSuggestions = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error mencari dusun: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // Search alamat orang tua dengan debounce
+  Future<void> _searchOrtu(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        ortuSuggestions = [];
+      });
+      _hideOverlay();
+      return;
+    }
+
+    setState(() => isLoadingSuggestions = true);
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 300));
+      final results = await service.searchDusun(query);
+
+      debugPrint('Raw search results for ortu: $results');
+      for (var result in results) {
+        debugPrint('Ortu entry: ${result.toString()}');
+        debugPrint('Keys available: ${result.keys.toList()}');
+      }
+
+      _debugDusunData(results);
+
+      if (mounted) {
+        setState(() {
+          ortuSuggestions = results;
+          isLoadingSuggestions = false;
+          debugPrint('Updated ortuSuggestions with ${ortuSuggestions.length} items');
+        });
+
+        if (ortuSuggestions.isNotEmpty) {
+          _showOverlayOrtu();
+        } else {
+          _hideOverlay();
+          if (query.length > 2) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Tidak ada dusun yang ditemukan untuk alamat orang tua'),
+                duration: Duration(seconds: 2),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error searching ortu: $e');
+      if (mounted) {
+        setState(() => isLoadingSuggestions = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error mencari dusun untuk alamat orang tua: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // Debug data dusun
+  void _debugDusunData(List<Map<String, dynamic>> results) {
+    debugPrint('=== DEBUG DUSUN DATA ===');
+    debugPrint('Total results: ${results.length}');
+    for (int i = 0; i < results.length && i < 3; i++) {
+      debugPrint('Result $i: ${results[i].toString()}');
+      debugPrint('Keys: ${results[i].keys.toList()}');
+    }
+    debugPrint('========================');
   }
 
   // Validation function
   bool _validateCurrentStep() {
     switch (currentStep) {
       case 0: // Personal Info
-        if (nisnC.text.isEmpty || 
-            namaC.text.isEmpty || 
-            selectedJenisKelamin == null || 
-            selectedAgama == null || 
-            tempatLahirC.text.isEmpty || 
+        if (nisnC.text.isEmpty ||
+            namaC.text.isEmpty ||
+            selectedJenisKelamin == null ||
+            selectedAgama == null ||
+            tempatLahirC.text.isEmpty ||
             tanggalLahirC.text.isEmpty ||
-            nikC.text.isEmpty) { // NIK is required!
+            nikC.text.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Mohon lengkapi semua data pribadi yang wajib diisi (termasuk NIK)'),
+              content: Text(
+                'Mohon lengkapi semua data pribadi yang wajib diisi (termasuk NIK)',
+              ),
               backgroundColor: Colors.orange,
               behavior: SnackBarBehavior.floating,
             ),
           );
           return false;
         }
-        
-        // Validate NISN length (10 digits)
         if (nisnC.text.length != 10) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -120,8 +611,6 @@ class _SplashScreenState extends State<SplashScreen>
           );
           return false;
         }
-        
-        // Validate NIK length (16 digits)
         if (nikC.text.length != 16) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -132,18 +621,19 @@ class _SplashScreenState extends State<SplashScreen>
           );
           return false;
         }
-        
         break;
-        
+
       case 1: // Address
-        if (jalanC.text.isEmpty || 
-            rtC.text.isEmpty ||  // RT is required!
-            desaC.text.isEmpty || 
-            kabupatenC.text.isEmpty || 
+        if (jalanC.text.isEmpty ||
+            rtC.text.isEmpty ||
+            desaC.text.isEmpty ||
+            kabupatenC.text.isEmpty ||
             provinsiC.text.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Mohon lengkapi data alamat yang wajib diisi (Jalan, RT, Desa, Kabupaten, Provinsi)'),
+              content: Text(
+                'Mohon lengkapi data alamat yang wajib diisi (Jalan, RT, Desa, Kabupaten, Provinsi)',
+              ),
               backgroundColor: Colors.orange,
               behavior: SnackBarBehavior.floating,
             ),
@@ -151,16 +641,35 @@ class _SplashScreenState extends State<SplashScreen>
           return false;
         }
         break;
-        
-      case 2: // Parent Info - Optional based on schema
-        // All parent data is optional in database
+
+      case 2: // Parent Info - Optional
+        if (dusunOrtuC.text.isNotEmpty ||
+            desaOrtuC.text.isNotEmpty ||
+            kecamatanOrtuC.text.isNotEmpty ||
+            kabupatenOrtuC.text.isNotEmpty ||
+            provinsiOrtuC.text.isNotEmpty ||
+            kodePosOrtuC.text.isNotEmpty) {
+          if (desaOrtuC.text.isEmpty ||
+              kabupatenOrtuC.text.isEmpty ||
+              provinsiOrtuC.text.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Mohon lengkapi data alamat orang tua (Desa, Kabupaten, Provinsi)',
+                ),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            return false;
+          }
+        }
         break;
     }
     return true;
   }
 
   Future<void> _simpanData() async {
-    // Validate all steps before saving
     for (int i = 0; i <= 2; i++) {
       int tempStep = currentStep;
       currentStep = i;
@@ -169,10 +678,9 @@ class _SplashScreenState extends State<SplashScreen>
         return;
       }
     }
-    currentStep = 2; // Reset to final step
-    
+    currentStep = 2;
+
     try {
-      // Show loading
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -183,45 +691,48 @@ class _SplashScreenState extends State<SplashScreen>
         ),
       );
 
-      // Prepare data - sesuai EXACT dengan struktur database
       final data = {
-        // Data Utama Siswa (semua required)
         'nisn': nisnC.text.trim(),
         'nama_lengkap': namaC.text.trim(),
-        'jenis_kelamin': selectedJenisKelamin!,  // Must not be null
-        'agama': selectedAgama!,                 // Must not be null  
+        'jenis_kelamin': selectedJenisKelamin!,
+        'agama': selectedAgama!,
         'tempat_lahir': tempatLahirC.text.trim(),
         'tanggal_lahir': tanggalLahirC.text.trim(),
-        'nik': nikC.text.trim(),                 // Required!
-        
-        // Alamat Siswa (jalan, rt, desa, kab, prov required)
-        'alamat_jalan': jalanC.text.trim(),      // Required!
-        'alamat_rt': rtC.text.trim(),            // Required!
-        'alamat_desa': desaC.text.trim(),        // Required!
-        'alamat_kabupaten': kabupatenC.text.trim(), // Required!
-        'alamat_provinsi': provinsiC.text.trim(),   // Required!
-        
-        // Optional fields
+        'nik': nikC.text.trim(),
+        'alamat_jalan': jalanC.text.trim(),
+        'alamat_rt': rtC.text.trim(),
+        'alamat_desa': desaC.text.trim(),
+        'alamat_kabupaten': kabupatenC.text.trim(),
+        'alamat_provinsi': provinsiC.text.trim(),
         'no_hp': noHpC.text.trim().isEmpty ? null : noHpC.text.trim(),
         'alamat_dusun': dusunC.text.trim().isEmpty ? null : dusunC.text.trim(),
-        'alamat_kode_pos': kodePosC.text.trim().isEmpty ? null : kodePosC.text.trim(),
+        'alamat_kecamatan':
+            kecamatanC.text.trim().isEmpty ? null : kecamatanC.text.trim(),
+        'alamat_kode_pos':
+            kodePosC.text.trim().isEmpty ? null : kodePosC.text.trim(),
         'nama_ayah': ayahC.text.trim().isEmpty ? null : ayahC.text.trim(),
         'nama_ibu': ibuC.text.trim().isEmpty ? null : ibuC.text.trim(),
         'nama_wali': waliC.text.trim().isEmpty ? null : waliC.text.trim(),
-        'alamat_orang_tua': alamatOrtuC.text.trim().isEmpty ? null : alamatOrtuC.text.trim(),
+        'alamat_dusun_ortu':
+            dusunOrtuC.text.trim().isEmpty ? null : dusunOrtuC.text.trim(),
+        'alamat_desa_ortu':
+            desaOrtuC.text.trim().isEmpty ? null : desaOrtuC.text.trim(),
+        'alamat_kecamatan_ortu':
+            kecamatanOrtuC.text.trim().isEmpty ? null : kecamatanOrtuC.text.trim(),
+        'alamat_kabupaten_ortu':
+            kabupatenOrtuC.text.trim().isEmpty ? null : kabupatenOrtuC.text.trim(),
+        'alamat_provinsi_ortu':
+            provinsiOrtuC.text.trim().isEmpty ? null : provinsiOrtuC.text.trim(),
+        'alamat_kode_pos_ortu':
+            kodePosOrtuC.text.trim().isEmpty ? null : kodePosOrtuC.text.trim(),
       };
 
-      // Remove null values to avoid database issues
       data.removeWhere((key, value) => value == null || value == '');
 
-      print('Data yang akan dikirim: $data'); // Debug log
-
       await service.insertSiswa(data);
-      
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading
 
-        // Show success dialog
+      if (mounted) {
+        Navigator.of(context).pop();
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -251,9 +762,7 @@ class _SplashScreenState extends State<SplashScreen>
       }
     } catch (e) {
       if (mounted) {
-        Navigator.of(context).pop(); // Close loading
-        print('Error detail: $e'); // Debug log
-        
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal simpan data: ${e.toString()}'),
@@ -274,10 +783,7 @@ class _SplashScreenState extends State<SplashScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
-            ],
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
           ),
         ),
         child: SafeArea(
@@ -293,6 +799,7 @@ class _SplashScreenState extends State<SplashScreen>
                     onPageChanged: (index) {
                       setState(() {
                         currentStep = index;
+                        _hideOverlay();
                       });
                     },
                     children: [
@@ -314,7 +821,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildHeader() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
-    
+
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: screenWidth * 0.05,
@@ -351,7 +858,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildStepIndicator() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
-    
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
       child: Row(
@@ -360,13 +867,23 @@ class _SplashScreenState extends State<SplashScreen>
           Expanded(child: _buildStepLine(0)),
           _buildStepCircle(1, 'Alamat', Icons.home, isSmallScreen),
           Expanded(child: _buildStepLine(1)),
-          _buildStepCircle(2, 'Orang Tua', Icons.family_restroom, isSmallScreen),
+          _buildStepCircle(
+            2,
+            'Orang Tua',
+            Icons.family_restroom,
+            isSmallScreen,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStepCircle(int step, String title, IconData icon, bool isSmallScreen) {
+  Widget _buildStepCircle(
+    int step,
+    String title,
+    IconData icon,
+    bool isSmallScreen,
+  ) {
     bool isActive = currentStep >= step;
     return Column(
       children: [
@@ -408,12 +925,9 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildPersonalInfoStep() {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = screenWidth * 0.05;
-    
+
     return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: 10,
-      ),
+      margin: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -435,7 +949,12 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
             SizedBox(height: screenWidth < 360 ? 15 : 20),
-            _buildAnimatedField(nisnC, 'NISN *', Icons.badge, TextInputType.number),
+            _buildAnimatedField(
+              nisnC,
+              'NISN *',
+              Icons.badge,
+              TextInputType.number,
+            ),
             _buildAnimatedField(namaC, 'Nama Lengkap *', Icons.person),
             _buildDropdownField(
               'Jenis Kelamin *',
@@ -451,10 +970,28 @@ class _SplashScreenState extends State<SplashScreen>
               Icons.mosque,
               (value) => setState(() => selectedAgama = value),
             ),
-            _buildAnimatedField(tempatLahirC, 'Tempat Lahir *', Icons.location_on),
-            _buildDateField(tanggalLahirC, 'Tanggal Lahir *', Icons.calendar_today),
-            _buildAnimatedField(noHpC, 'No HP', Icons.phone, TextInputType.phone),
-            _buildAnimatedField(nikC, 'NIK (16 digit) *', Icons.credit_card, TextInputType.number),
+            _buildAnimatedField(
+              tempatLahirC,
+              'Tempat Lahir *',
+              Icons.location_on,
+            ),
+            _buildDateField(
+              tanggalLahirC,
+              'Tanggal Lahir *',
+              Icons.calendar_today,
+            ),
+            _buildAnimatedField(
+              noHpC,
+              'No HP',
+              Icons.phone,
+              TextInputType.phone,
+            ),
+            _buildAnimatedField(
+              nikC,
+              'NIK (16 digit) *',
+              Icons.credit_card,
+              TextInputType.number,
+            ),
           ],
         ),
       ),
@@ -464,12 +1001,9 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildAddressStep() {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = screenWidth * 0.05;
-    
+
     return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: 10,
-      ),
+      margin: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -492,26 +1026,113 @@ class _SplashScreenState extends State<SplashScreen>
             ),
             SizedBox(height: screenWidth < 360 ? 15 : 20),
             _buildAnimatedField(jalanC, 'Alamat Jalan *', Icons.home_filled),
-            // Responsive Row untuk RT dan Dusun
-            screenWidth > 400 
+            screenWidth > 400
                 ? Row(
                     children: [
-                      Expanded(child: _buildAnimatedField(rtC, 'RT *', Icons.home_work)),
+                      Expanded(
+                        child: _buildAnimatedField(
+                          rtC,
+                          'RT *',
+                          Icons.home_work,
+                        ),
+                      ),
                       const SizedBox(width: 10),
-                      Expanded(child: _buildAnimatedField(dusunC, 'Dusun', Icons.location_city)),
+                      Expanded(child: _buildDusunAutoComplete()),
                     ],
                   )
                 : Column(
                     children: [
                       _buildAnimatedField(rtC, 'RT *', Icons.home_work),
-                      _buildAnimatedField(dusunC, 'Dusun', Icons.location_city),
+                      _buildDusunAutoComplete(),
                     ],
                   ),
-            _buildAnimatedField(desaC, 'Desa *', Icons.landscape),
-            _buildAnimatedField(kabupatenC, 'Kabupaten *', Icons.domain),
-            _buildAnimatedField(provinsiC, 'Provinsi *', Icons.map),
-            _buildAnimatedField(kodePosC, 'Kode Pos', Icons.local_post_office, TextInputType.number),
+            _buildReadOnlyField(
+              desaC,
+              'Desa *',
+              Icons.landscape,
+              TextInputType.text,
+              1,
+            ),
+            _buildReadOnlyField(
+              kecamatanC,
+              'Kecamatan',
+              Icons.location_city,
+              TextInputType.text,
+              1,
+            ),
+            _buildReadOnlyField(
+              kabupatenC,
+              'Kabupaten *',
+              Icons.domain,
+              TextInputType.text,
+              1,
+            ),
+            _buildReadOnlyField(
+              provinsiC,
+              'Provinsi *',
+              Icons.map,
+              TextInputType.text,
+              1,
+            ),
+            _buildReadOnlyField(
+              kodePosC,
+              'Kode Pos',
+              Icons.local_post_office,
+              TextInputType.number,
+              1,
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDusunAutoComplete() {
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        child: TextFormField(
+          controller: dusunC,
+          focusNode: dusunFocusNode,
+          decoration: InputDecoration(
+            labelText: 'Dusun (Ketik untuk mencari)',
+            prefixIcon: const Icon(
+              Icons.location_city,
+              color: Color(0xFF667eea),
+            ),
+            suffixIcon: isLoadingSuggestions
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : const Icon(Icons.search),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.grey, width: 1),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
+            hintText: 'Contoh: Ampelgading',
+          ),
+          onChanged: (value) {
+            debugPrint('Dusun field changed: $value');
+            _searchDusun(value);
+          },
+          onTap: () {
+            debugPrint('Dusun field tapped');
+            if (dusunC.text.isNotEmpty && dusunSuggestions.isNotEmpty) {
+              _showOverlay();
+            }
+          },
         ),
       ),
     );
@@ -520,12 +1141,9 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildParentInfoStep() {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = screenWidth * 0.05;
-    
+
     return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: 10,
-      ),
+      margin: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -549,9 +1167,95 @@ class _SplashScreenState extends State<SplashScreen>
             SizedBox(height: screenWidth < 360 ? 15 : 20),
             _buildAnimatedField(ayahC, 'Nama Ayah', Icons.man),
             _buildAnimatedField(ibuC, 'Nama Ibu', Icons.woman),
-            _buildAnimatedField(waliC, 'Nama Wali', Icons.person_outline),
-            _buildAnimatedField(alamatOrtuC, 'Alamat Orang Tua/Wali', Icons.home_filled),
+            _buildAnimatedField(waliC, 'Nama Wali', Icons.group),
+            _buildOrtuAutoComplete(),
+            _buildReadOnlyField(
+              desaOrtuC,
+              'Desa',
+              Icons.landscape,
+              TextInputType.text,
+              1,
+            ),
+            _buildReadOnlyField(
+              kecamatanOrtuC,
+              'Kecamatan',
+              Icons.location_city,
+              TextInputType.text,
+              1,
+            ),
+            _buildReadOnlyField(
+              kabupatenOrtuC,
+              'Kabupaten',
+              Icons.domain,
+              TextInputType.text,
+              1,
+            ),
+            _buildReadOnlyField(
+              provinsiOrtuC,
+              'Provinsi',
+              Icons.map,
+              TextInputType.text,
+              1,
+            ),
+            _buildReadOnlyField(
+              kodePosOrtuC,
+              'Kode Pos',
+              Icons.local_post_office,
+              TextInputType.number,
+              1,
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrtuAutoComplete() {
+    return CompositedTransformTarget(
+      link: _ortuLayerLink,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        child: TextFormField(
+          controller: dusunOrtuC,
+          focusNode: ortuFocusNode,
+          decoration: InputDecoration(
+            labelText: 'Dusun Orang Tua (Ketik untuk mencari)',
+            prefixIcon: const Icon(
+              Icons.location_city,
+              color: Color(0xFF667eea),
+            ),
+            suffixIcon: isLoadingSuggestions
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : const Icon(Icons.search),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.grey, width: 1),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
+            hintText: 'Contoh: Ampelgading',
+          ),
+          onChanged: (value) {
+            debugPrint('Ortu dusun field changed: $value');
+            _searchOrtu(value);
+          },
+          onTap: () {
+            debugPrint('Ortu dusun field tapped');
+            if (dusunOrtuC.text.isNotEmpty && ortuSuggestions.isNotEmpty) {
+              _showOverlayOrtu();
+            }
+          },
         ),
       ),
     );
@@ -561,12 +1265,12 @@ class _SplashScreenState extends State<SplashScreen>
     TextEditingController controller,
     String label,
     IconData icon, [
-    TextInputType? keyboardType,
+    TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
   ]) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: TextFormField(
+      child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
@@ -575,7 +1279,7 @@ class _SplashScreenState extends State<SplashScreen>
           prefixIcon: Icon(icon, color: const Color(0xFF667eea)),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.grey, width: 1),
+            borderSide: const BorderSide(color: Colors.grey),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -588,37 +1292,60 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _buildDropdownField(
+  Widget _buildReadOnlyField(
+    TextEditingController controller,
     String label,
-    String? value,
-    List<String> items,
-    IconData icon,
-    Function(String?) onChanged,
-  ) {
+    IconData icon, [
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  ]) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: DropdownButtonFormField<String>(
-        value: value,
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        readOnly: true,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, color: const Color(0xFF667eea)),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
           ),
           filled: true,
+          fillColor: Colors.grey[200],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField(
+    String label,
+    String? selectedValue,
+    List<String> items,
+    IconData icon,
+    void Function(String?) onChanged,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: DropdownButtonFormField<String>(
+        value: selectedValue,
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: const Color(0xFF667eea)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          filled: true,
           fillColor: Colors.grey[50],
         ),
-        items: items.map((String item) {
-          return DropdownMenuItem<String>(
-            value: item,
-            child: Text(item),
-          );
-        }).toList(),
-        onChanged: onChanged,
+        items: items
+            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+            .toList(),
       ),
     );
   }
@@ -630,42 +1357,26 @@ class _SplashScreenState extends State<SplashScreen>
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: TextFormField(
+      child: TextField(
         controller: controller,
         readOnly: true,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, color: const Color(0xFF667eea)),
-          suffixIcon: const Icon(Icons.arrow_drop_down),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           filled: true,
           fillColor: Colors.grey[50],
         ),
         onTap: () async {
-          final DateTime? picked = await showDatePicker(
+          final picked = await showDatePicker(
             context: context,
-            initialDate: DateTime(2000),
-            firstDate: DateTime(1980),
-            lastDate: DateTime.now(),
-            builder: (context, child) {
-              return Theme(
-                data: Theme.of(context).copyWith(
-                  colorScheme: const ColorScheme.light(
-                    primary: Color(0xFF667eea),
-                  ),
-                ),
-                child: child!,
-              );
-            },
+            initialDate: DateTime.now(),
+            firstDate: DateTime(1900),
+            lastDate: DateTime(2100),
           );
           if (picked != null) {
-            controller.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+            controller.text =
+                "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
           }
         },
       ),
@@ -673,95 +1384,54 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Widget _buildBottomButtons() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 360;
-    
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: screenWidth * 0.05,
-        vertical: isSmallScreen ? 15 : 20,
-      ),
-      child: screenWidth > 400 
-          ? Row(
-              children: [
-                if (currentStep > 0)
-                  Expanded(
-                    child: _buildButton(
-                      'Sebelumnya',
-                      () {
-                        _pageController.previousPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      },
-                      isSecondary: true,
-                    ),
-                  ),
-                if (currentStep > 0) const SizedBox(width: 10),
-                Expanded(
-                  child: _buildButton(
-                    currentStep == 2 ? 'Simpan Data' : 'Selanjutnya',
-                    currentStep == 2 ? _simpanData : () {
-                      if (_validateCurrentStep()) {
-                        _pageController.nextPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              children: [
-                _buildButton(
-                  currentStep == 2 ? 'Simpan Data' : 'Selanjutnya',
-                  currentStep == 2 ? _simpanData : () {
-                    if (_validateCurrentStep()) {
-                      _pageController.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    }
-                  },
-                ),
-                if (currentStep > 0) const SizedBox(height: 10),
-                if (currentStep > 0)
-                  _buildButton(
-                    'Sebelumnya',
-                    () {
-                      _pageController.previousPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                    isSecondary: true,
-                  ),
-              ],
+    final isLastStep = currentStep == 2;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          if (currentStep > 0)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[400],
+              ),
+              onPressed: () {
+                if (currentStep > 0) {
+                  setState(() {
+                    currentStep--;
+                    _hideOverlay();
+                  });
+                  _pageController.previousPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                }
+              },
+              child: const Text('Sebelumnya'),
             ),
-    );
-  }
-
-  Widget _buildButton(String text, VoidCallback onPressed, {bool isSecondary = false}) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isSecondary ? Colors.white30 : Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF667eea),
+            ),
+            onPressed: () {
+              if (!isLastStep) {
+                if (_validateCurrentStep()) {
+                  setState(() {
+                    currentStep++;
+                    _hideOverlay();
+                  });
+                  _pageController.nextPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                }
+              } else {
+                _simpanData();
+              }
+            },
+            child: Text(isLastStep ? 'Simpan' : 'Selanjutnya'),
           ),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: isSecondary ? Colors.white : const Color(0xFF667eea),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        ],
       ),
     );
   }
