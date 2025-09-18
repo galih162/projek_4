@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const SiswaPage(), // halaman pertama yang muncul
+      home: const SplashScreen(), // halaman pertama yang muncul
     );
   }
 }

@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:projek_4/service.dart';
 import 'package:projek_4/screens/dasboard_page.dart';
 
-class SiswaPage extends StatefulWidget {
-  const SiswaPage({super.key});
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
 
   @override
-  State<SiswaPage> createState() => _SiswaPageState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
   final service = SupabaseService();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -159,8 +160,12 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
                         return InkWell(
                           onTap: () {
                             debugPrint(
-                                'Dusun clicked at index $index: ${dusun.toString()}');
+                              'Dusun clicked at index $index: ${dusun.toString()}',
+                            );
                             _fillAlamatFromDusun(dusun);
+                            debugPrint(
+                              'Calling _fillAlamatFromDusun for dusun: ${dusun['dusun']}',
+                            );
                           },
                           splashColor: Colors.blue.withValues(alpha: 0.2),
                           child: Container(
@@ -175,7 +180,7 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        dusun['nama_dusun']?.toString() ??
+                                        dusun['dusun']?.toString() ??
                                             'Tidak diketahui',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w500,
@@ -195,7 +200,7 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${dusun['desa']?['nama_desa']?.toString() ?? ''}, ${dusun['desa']?['kecamatan']?['nama_kecamatan']?.toString() ?? ''}\n${dusun['desa']?['kecamatan']?['kabupaten']?['nama_kabupaten']?.toString() ?? ''}, ${dusun['desa']?['kecamatan']?['kabupaten']?['provinsi']?['nama_provinsi']?.toString() ?? ''}',
+                                  '${dusun['desa']?.toString() ?? ''}, ${dusun['kecamatan']?.toString() ?? ''}\n${dusun['kabupaten']?.toString() ?? ''}, ${dusun['provinsi']?.toString() ?? ''}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],
@@ -260,9 +265,9 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
                         final dusun = ortuSuggestions[index];
                         return InkWell(
                           onTap: () {
-                            debugPrint(
-                                'Ortu dusun clicked at index $index: ${dusun.toString()}');
+                            debugPrint('Ortu dusun clicked at index $index: ${dusun.toString()}');
                             _fillAlamatFromOrtu(dusun);
+                            debugPrint('Calling _fillAlamatFromOrtu for dusun: ${dusun['dusun']}');
                           },
                           splashColor: Colors.blue.withValues(alpha: 0.2),
                           child: Container(
@@ -277,8 +282,7 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        dusun['nama_dusun']?.toString() ??
-                                            'Tidak diketahui',
+                                        dusun['dusun']?.toString() ?? 'Tidak diketahui',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w500,
                                           fontSize: 16,
@@ -297,7 +301,7 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${dusun['desa']?['nama_desa']?.toString() ?? ''}, ${dusun['desa']?['kecamatan']?['nama_kecamatan']?.toString() ?? ''}\n${dusun['desa']?['kecamatan']?['kabupaten']?['nama_kabupaten']?.toString() ?? ''}, ${dusun['desa']?['kecamatan']?['kabupaten']?['provinsi']?['nama_provinsi']?.toString() ?? ''}',
+                                  '${dusun['desa']?.toString() ?? ''}, ${dusun['kecamatan']?.toString() ?? ''}\n${dusun['kabupaten']?.toString() ?? ''}, ${dusun['provinsi']?.toString() ?? ''}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],
@@ -333,19 +337,11 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
     debugPrint('Keys in selectedDusun: ${selectedDusun.keys.toList()}');
 
     setState(() {
-      dusunC.text = selectedDusun['nama_dusun']?.toString() ?? '';
-      desaC.text = selectedDusun['desa']?['nama_desa']?.toString() ?? '';
-      kecamatanC.text =
-          selectedDusun['desa']?['kecamatan']?['nama_kecamatan']?.toString() ??
-              '';
-      kabupatenC.text =
-          selectedDusun['desa']?['kecamatan']?['kabupaten']?['nama_kabupaten']
-                  ?.toString() ??
-              '';
-      provinsiC.text =
-          selectedDusun['desa']?['kecamatan']?['kabupaten']?['provinsi']
-                  ?['nama_provinsi']?.toString() ??
-              '';
+      dusunC.text = selectedDusun['dusun']?.toString() ?? '';
+      desaC.text = selectedDusun['desa']?.toString() ?? '';
+      kecamatanC.text = selectedDusun['kecamatan']?.toString() ?? '';
+      kabupatenC.text = selectedDusun['kabupaten']?.toString() ?? '';
+      provinsiC.text = selectedDusun['provinsi'].toString().replaceAll('_', ' ');
       kodePosC.text = selectedDusun['kode_pos']?.toString() ?? '';
       debugPrint('Field values set:');
       debugPrint('dusun=${dusunC.text}');
@@ -380,7 +376,7 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Alamat berhasil diisi otomatis untuk ${selectedDusun['nama_dusun'].toString()}',
+          'Alamat berhasil diisi otomatis untuk ${selectedDusun['dusun'].toString()}',
         ),
         duration: const Duration(seconds: 2),
         backgroundColor: Colors.green,
@@ -396,19 +392,11 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
     debugPrint('Keys in selectedDusun: ${selectedDusun.keys.toList()}');
 
     setState(() {
-      dusunOrtuC.text = selectedDusun['nama_dusun']?.toString() ?? '';
-      desaOrtuC.text = selectedDusun['desa']?['nama_desa']?.toString() ?? '';
-      kecamatanOrtuC.text =
-          selectedDusun['desa']?['kecamatan']?['nama_kecamatan']?.toString() ??
-              '';
-      kabupatenOrtuC.text =
-          selectedDusun['desa']?['kecamatan']?['kabupaten']?['nama_kabupaten']
-                  ?.toString() ??
-              '';
-      provinsiOrtuC.text =
-          selectedDusun['desa']?['kecamatan']?['kabupaten']?['provinsi']
-                  ?['nama_provinsi']?.toString() ??
-              '';
+      dusunOrtuC.text = selectedDusun['dusun']?.toString() ?? '';
+      desaOrtuC.text = selectedDusun['desa']?.toString() ?? '';
+      kecamatanOrtuC.text = selectedDusun['kecamatan']?.toString() ?? '';
+      kabupatenOrtuC.text = selectedDusun['kabupaten']?.toString() ?? '';
+      provinsiOrtuC.text = selectedDusun['provinsi'].toString().replaceAll('_', ' ');
       kodePosOrtuC.text = selectedDusun['kode_pos']?.toString() ?? '';
       debugPrint('Ortu field values set:');
       debugPrint('dusun=${dusunOrtuC.text}');
@@ -443,7 +431,7 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Alamat orang tua berhasil diisi otomatis untuk ${selectedDusun['nama_dusun'].toString()}',
+          'Alamat orang tua berhasil diisi otomatis untuk ${selectedDusun['dusun'].toString()}',
         ),
         duration: const Duration(seconds: 2),
         backgroundColor: Colors.green,
@@ -469,33 +457,23 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
       final results = await service.searchDusun(query);
 
       debugPrint('Raw search results: $results');
-      for (var result in (results['data'] as List<dynamic>)) {
+      for (var result in results) {
         debugPrint('Dusun entry: ${result.toString()}');
-        debugPrint('Keys available: ${(result as Map<String, dynamic>).keys.toList()}');
+        debugPrint('Keys available: ${result.keys.toList()}');
       }
 
-      _debugDusunData(results['data'] as List<Map<String, dynamic>>);
+      _debugDusunData(results);
 
       if (mounted) {
         setState(() {
-          dusunSuggestions =
-              List<Map<String, dynamic>>.from(results['data'] ?? []);
+          dusunSuggestions = results;
           isLoadingSuggestions = false;
           debugPrint(
-              'Updated dusunSuggestions with ${dusunSuggestions.length} items');
+            'Updated dusunSuggestions with ${dusunSuggestions.length} items',
+          );
         });
 
-        if (results['success'] == false) {
-          _hideOverlay();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(results['message'] ?? 'Error mencari dusun'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        } else if (dusunSuggestions.isNotEmpty) {
+        if (dusunSuggestions.isNotEmpty) {
           _showOverlay();
         } else {
           _hideOverlay();
@@ -544,42 +522,28 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
       final results = await service.searchDusun(query);
 
       debugPrint('Raw search results for ortu: $results');
-      for (var result in (results['data'] as List<dynamic>)) {
+      for (var result in results) {
         debugPrint('Ortu entry: ${result.toString()}');
-        debugPrint('Keys available: ${(result as Map<String, dynamic>).keys.toList()}');
+        debugPrint('Keys available: ${result.keys.toList()}');
       }
 
-      _debugDusunData(results['data'] as List<Map<String, dynamic>>);
+      _debugDusunData(results);
 
       if (mounted) {
         setState(() {
-          ortuSuggestions =
-              List<Map<String, dynamic>>.from(results['data'] ?? []);
+          ortuSuggestions = results;
           isLoadingSuggestions = false;
-          debugPrint(
-              'Updated ortuSuggestions with ${ortuSuggestions.length} items');
+          debugPrint('Updated ortuSuggestions with ${ortuSuggestions.length} items');
         });
 
-        if (results['success'] == false) {
-          _hideOverlay();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content:
-                  Text(results['message'] ?? 'Error mencari dusun orang tua'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        } else if (ortuSuggestions.isNotEmpty) {
+        if (ortuSuggestions.isNotEmpty) {
           _showOverlayOrtu();
         } else {
           _hideOverlay();
           if (query.length > 2) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content:
-                    Text('Tidak ada dusun yang ditemukan untuk alamat orang tua'),
+                content: Text('Tidak ada dusun yang ditemukan untuk alamat orang tua'),
                 duration: Duration(seconds: 2),
                 backgroundColor: Colors.orange,
                 behavior: SnackBarBehavior.floating,
@@ -765,51 +729,40 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
 
       data.removeWhere((key, value) => value == null || value == '');
 
-      final response = await service.insertSiswa(data);
+      await service.insertSiswa(data);
 
       if (mounted) {
-        Navigator.of(context).pop(); // Tutup dialog loading
-        if (response['success'] == true) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green, size: 28),
-                  SizedBox(width: 10),
-                  Text('Berhasil!'),
-                ],
-              ),
-              content: const Text('Data siswa berhasil disimpan'),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DashboardPage()),
-                    );
-                  },
-                  child: const Text('OK'),
-                ),
+        Navigator.of(context).pop();
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 28),
+                SizedBox(width: 10),
+                Text('Berhasil!'),
               ],
             ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response['message'] ?? 'Gagal simpan data'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
+            content: const Text('Data siswa berhasil disimpan'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DashboardPage()),
+                  );
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        Navigator.of(context).pop(); // Tutup dialog loading
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal simpan data: ${e.toString()}'),
@@ -926,7 +879,11 @@ class _SiswaPageState extends State<SiswaPage> with TickerProviderStateMixin {
   }
 
   Widget _buildStepCircle(
-      int step, String title, IconData icon, bool isSmallScreen) {
+    int step,
+    String title,
+    IconData icon,
+    bool isSmallScreen,
+  ) {
     bool isActive = currentStep >= step;
     return Column(
       children: [
