@@ -71,7 +71,7 @@ class _DashboardPageState extends State<DashboardPage> {
         onPressed: () async {
           final result = await Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => const SplashScreen (), 
+              builder: (context) => const SplashScreen(), 
             ),
           );
           if (result == true) {
@@ -461,7 +461,6 @@ class _DashboardPageState extends State<DashboardPage> {
                   _buildDetailItem('Kabupaten', siswa['alamat_kabupaten']),
                   _buildDetailItem('Provinsi', siswa['alamat_provinsi']),
                   _buildDetailItem('Kode Pos', siswa['alamat_kode_pos']),
-
                 ]),
                 const SizedBox(height: 16),
                 _buildDetailSection('Data Orang Tua/Wali', [
@@ -560,172 +559,37 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // NEW IMPROVED EDIT DIALOG METHOD
   void _showEditDialog(Map<String, dynamic> siswa) {
-    final Map<String, TextEditingController> controllers = {};
-    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
-    // Initialize all controllers with existing data
-    siswa.forEach((key, value) {
-      controllers[key] = TextEditingController(text: value?.toString() ?? '');
-    });
-
-    String? selectedJenisKelamin = siswa['jenis_kelamin'];
-    String? selectedAgama = siswa['agama'];
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Data Siswa'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: StatefulBuilder(
-                builder: (context, setDialogState) {
-                  return Column(
-                    children: [
-                      _buildEditField(controllers['nama_lengkap']!, 'Nama Lengkap', formKey),
-                      _buildEditField(controllers['nisn']!, 'NISN', formKey),
-                      _buildEditDropdown(
-                        'Jenis Kelamin',
-                        selectedJenisKelamin,
-                        ['Laki-laki', 'Perempuan'],
-                        (value) => setDialogState(() => selectedJenisKelamin = value),
-                        formKey,
-                      ),
-                      _buildEditDropdown(
-                        'Agama',
-                        selectedAgama,
-                        ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'],
-                        (value) => setDialogState(() => selectedAgama = value),
-                        formKey,
-                      ),
-                      _buildEditField(controllers['tempat_lahir']!, 'Tempat Lahir', formKey),
-                      _buildEditField(controllers['tanggal_lahir']!, 'Tanggal Lahir', formKey),
-                      _buildEditField(controllers['alamat_jalan']!, 'Jalan', formKey),
-                      _buildEditField(controllers['alamat_rt']!, 'RT', formKey),
-                      _buildEditField(controllers['alamat_dusun_ortu']!, 'Dusun Ortu', formKey),
-                      _buildEditField(controllers['alamat_desa_ortu']!, 'Desa Ortu', formKey),
-                      _buildEditField(controllers['alamat_kecamatan_ortu']!, 'Kecamatan Ortu', formKey),
-                      _buildEditField(controllers['alamat_kabupaten_ortu']!, 'Kabupaten Ortu', formKey),
-                      _buildEditField(controllers['alamat_provinsi_ortu']!, 'Provinsi Ortu', formKey),
-                    ],
-                  );
-                },
+      barrierDismissible: false, // Prevent accidental dismissal
+      builder: (context) => _EditDialog(
+        siswa: siswa,
+        service: service,
+        onSuccess: () {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Data berhasil diupdate'),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
               ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              controllers.forEach((key, controller) => controller.dispose());
-              Navigator.of(context).pop();
-            },
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState?.validate() ?? false) {
-                try {
-                  final updatedData = <String, dynamic>{};
-                  controllers.forEach((key, controller) {
-                    if (controller.text.isNotEmpty) {
-                      updatedData[key] = controller.text;
-                    }
-                  });
-
-                  if (selectedJenisKelamin != null) {
-                    updatedData['jenis_kelamin'] = selectedJenisKelamin;
-                  }
-                  if (selectedAgama != null) {
-                    updatedData['agama'] = selectedAgama;
-                  }
-
-                  await service.updateSiswa(siswa['id'], updatedData);
-
-                  controllers.forEach((key, controller) => controller.dispose());
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Data berhasil diupdate'),
-                        backgroundColor: Colors.green,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                    _loadData();
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Gagal update: $e'),
-                        backgroundColor: Colors.red,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEditField(TextEditingController controller, String label, GlobalKey<FormState> formKey) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-          focusedBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.orange),
-          ),
-        ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            if (label == 'NISN' || label == 'Nama Lengkap' || label == 'Jalan' || label == 'RT') {
-              return '$label wajib diisi';
-            }
+            );
+            _loadData();
           }
-          if (label == 'NISN' && value != null && value.length != 10) {
-            return 'NISN harus 10 digit';
-          }
-          return null;
         },
-      ),
-    );
-  }
-
-  Widget _buildEditDropdown(String label, String? value, List<String> items, Function(String?) onChanged, GlobalKey<FormState> formKey) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<String>(
-        value: value,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-          focusedBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.orange),
-          ),
-        ),
-        items: items.map((String item) {
-          return DropdownMenuItem<String>(
-            value: item,
-            child: Text(item),
-          );
-        }).toList(),
-        onChanged: onChanged,
-        validator: (value) => value == null ? '$label wajib dipilih' : null,
+        onError: (String error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Gagal update: $error'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
       ),
     );
   }
@@ -782,5 +646,299 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
     );
+  }
+}
+
+// SEPARATE EDIT DIALOG WIDGET WITH AUTOFILL FEATURE
+class _EditDialog extends StatefulWidget {
+  final Map<String, dynamic> siswa;
+  final SupabaseService service;
+  final VoidCallback onSuccess;
+  final Function(String) onError;
+
+  const _EditDialog({
+    required this.siswa,
+    required this.service,
+    required this.onSuccess,
+    required this.onError,
+  });
+
+  @override
+  State<_EditDialog> createState() => _EditDialogState();
+}
+
+class _EditDialogState extends State<_EditDialog> {
+  final Map<String, TextEditingController> controllers = {};
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  String? selectedJenisKelamin;
+  String? selectedAgama;
+  bool isLoading = false;
+  
+  // Autofill data
+  List<Map<String, dynamic>> dusunList = [];
+  Map<String, dynamic>? selectedDusun;
+  bool isLoadingDusun = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize all controllers with existing data
+    widget.siswa.forEach((key, value) {
+      controllers[key] = TextEditingController(text: value?.toString() ?? '');
+    });
+    
+    selectedJenisKelamin = widget.siswa['jenis_kelamin'];
+    selectedAgama = widget.siswa['agama'];
+    
+    // Load dusun data for autofill
+    _loadDusunData();
+  }
+
+  @override
+  void dispose() {
+    // Properly dispose all controllers
+    controllers.forEach((key, controller) => controller.dispose());
+    super.dispose();
+  }
+
+  Future<void> _loadDusunData() async {
+    setState(() => isLoadingDusun = true);
+    try {
+      final data = await widget.service.fetchDusunWithRelations();
+      setState(() {
+        dusunList = data;
+        isLoadingDusun = false;
+      });
+    } catch (e) {
+      setState(() => isLoadingDusun = false);
+      print('Error loading dusun data: $e');
+    }
+  }
+
+  void _onDusunSelected(Map<String, dynamic>? dusun) {
+    setState(() {
+      selectedDusun = dusun;
+      if (dusun != null) {
+        // Autofill related fields
+        controllers['alamat_dusun']?.text = dusun['nama_dusun'] ?? '';
+        controllers['alamat_desa']?.text = dusun['desa']?['nama_desa'] ?? '';
+        controllers['alamat_kecamatan']?.text = dusun['desa']?['kecamatan']?['nama_kecamatan'] ?? '';
+        controllers['alamat_kabupaten']?.text = dusun['desa']?['kecamatan']?['kabupaten']?['nama_kabupaten'] ?? '';
+        controllers['alamat_provinsi']?.text = dusun['desa']?['kecamatan']?['kabupaten']?['provinsi']?['nama_provinsi'] ?? '';
+        controllers['alamat_dusun_ortu']?.text = dusun['nama_dusun'] ?? '';
+        controllers['alamat_desa_ortu']?.text = dusun['desa']?['nama_desa'] ?? '';
+        controllers['alamat_kecamatan_ortu']?.text = dusun['desa']?['kecamatan']?['nama_kecamatan'] ?? '';
+        controllers['alamat_kabupaten_ortu']?.text = dusun['desa']?['kecamatan']?['kabupaten']?['nama_kabupaten'] ?? '';
+        controllers['alamat_provinsi_ortu']?.text = dusun['desa']?['kecamatan']?['kabupaten']?['provinsi']?['nama_provinsi'] ?? '';
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Data Siswa'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 500,
+        child: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildEditField(controllers['nama_lengkap']!, 'Nama Lengkap'),
+                _buildEditField(controllers['nisn']!, 'NISN'),
+                _buildEditDropdown(
+                  'Jenis Kelamin',
+                  selectedJenisKelamin,
+                  ['Laki-laki', 'Perempuan'],
+                  (value) => setState(() => selectedJenisKelamin = value),
+                ),
+                _buildEditDropdown(
+                  'Agama',
+                  selectedAgama,
+                  ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'],
+                  (value) => setState(() => selectedAgama = value),
+                ),
+                _buildEditField(controllers['tempat_lahir']!, 'Tempat Lahir'),
+                _buildEditField(controllers['tanggal_lahir']!, 'Tanggal Lahir'),
+                _buildEditField(controllers['alamat_jalan']!, 'Jalan'),
+                _buildEditField(controllers['alamat_rt']!, 'RT'),
+                
+                // DUSUN DROPDOWN WITH AUTOFILL
+                _buildDusunDropdown(),
+                
+                // These fields will be auto-filled when dusun is selected
+                _buildEditField(controllers['alamat_dusun_ortu']!, 'Dusun Ortu', readOnly: true),
+                _buildEditField(controllers['alamat_desa_ortu']!, 'Desa Ortu', readOnly: true),
+                _buildEditField(controllers['alamat_kecamatan_ortu']!, 'Kecamatan Ortu', readOnly: true),
+                _buildEditField(controllers['alamat_kabupaten_ortu']!, 'Kabupaten Ortu', readOnly: true),
+                _buildEditField(controllers['alamat_provinsi_ortu']!, 'Provinsi Ortu', readOnly: true),
+                
+                _buildEditField(controllers['nama_ayah']!, 'Nama Ayah'),
+                _buildEditField(controllers['nama_ibu']!, 'Nama Ibu'),
+                _buildEditField(controllers['nama_wali']!, 'Nama Wali'),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(
+          onPressed: isLoading ? null : _handleSave,
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+          child: isLoading 
+              ? const SizedBox(
+                  width: 20, 
+                  height: 20, 
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Simpan', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDusunDropdown() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<Map<String, dynamic>>(
+        value: selectedDusun,
+        decoration: const InputDecoration(
+          labelText: 'Dusun (Autofill Alamat)',
+          border: OutlineInputBorder(),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.orange),
+          ),
+          prefixIcon: Icon(Icons.location_on, color: Colors.orange),
+        ),
+        hint: isLoadingDusun 
+            ? const Row(
+                children: [
+                  SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(width: 8),
+                  Text('Memuat dusun...'),
+                ],
+              )
+            : const Text('Pilih Dusun untuk Autofill'),
+        items: dusunList.map((dusun) {
+          return DropdownMenuItem<Map<String, dynamic>>(
+            value: dusun,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  dusun['nama_dusun'] ?? 'Unknown Dusun',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '${dusun['desa']?['nama_desa'] ?? ''}, ${dusun['desa']?['kecamatan']?['nama_kecamatan'] ?? ''}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+        onChanged: isLoading ? null : _onDusunSelected,
+        isExpanded: true,
+        menuMaxHeight: 200,
+      ),
+    );
+  }
+
+  Widget _buildEditField(TextEditingController controller, String label, {bool readOnly = false}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        enabled: !isLoading,
+        readOnly: readOnly,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          focusedBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.orange),
+          ),
+          filled: readOnly,
+          fillColor: readOnly ? Colors.grey[100] : null,
+          prefixIcon: readOnly ? const Icon(Icons.lock, color: Colors.grey, size: 20) : null,
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            if (label == 'NISN' || label == 'Nama Lengkap' || label == 'Jalan' || label == 'RT') {
+              return '$label wajib diisi';
+            }
+          }
+          if (label == 'NISN' && value != null && value.length != 10) {
+            return 'NISN harus 10 digit';
+          }
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _buildEditDropdown(String label, String? value, List<String> items, Function(String?) onChanged) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          focusedBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.orange),
+          ),
+        ),
+        items: items.map((String item) {
+          return DropdownMenuItem<String>(
+            value: item,
+            child: Text(item),
+          );
+        }).toList(),
+        onChanged: isLoading ? null : onChanged,
+        validator: (value) => value == null ? '$label wajib dipilih' : null,
+      ),
+    );
+  }
+
+  Future<void> _handleSave() async {
+    if (!(formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => isLoading = true);
+
+    try {
+      final updatedData = <String, dynamic>{};
+      controllers.forEach((key, controller) {
+        if (controller.text.isNotEmpty) {
+          updatedData[key] = controller.text;
+        }
+      });
+
+      if (selectedJenisKelamin != null) {
+        updatedData['jenis_kelamin'] = selectedJenisKelamin;
+      }
+      if (selectedAgama != null) {
+        updatedData['agama'] = selectedAgama;
+      }
+
+      await widget.service.updateSiswa(widget.siswa['id'], updatedData);
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onSuccess();
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      widget.onError(e.toString());
+    }
   }
 }

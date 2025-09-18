@@ -1032,7 +1032,7 @@ class _SplashScreenState extends State<SplashScreen>
                       Expanded(
                         child: _buildAnimatedField(
                           rtC,
-                          'RT *',
+                          'RT/RW *',
                           Icons.home_work,
                         ),
                       ),
@@ -1042,7 +1042,7 @@ class _SplashScreenState extends State<SplashScreen>
                   )
                 : Column(
                     children: [
-                      _buildAnimatedField(rtC, 'RT *', Icons.home_work),
+                      _buildAnimatedField(rtC, 'RT/RW *', Icons.home_work),
                       _buildDusunAutoComplete(),
                     ],
                   ),
