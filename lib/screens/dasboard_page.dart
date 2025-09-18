@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:projek_4/service.dart';
-import 'package:projek_4/home/siswa_page.dart'; // Pastikan impor ini sesuai dengan lokasi file siswa_page.dart
+import 'package:projek_4/home/siswa_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -25,16 +25,19 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() => isLoading = true);
     try {
       final data = await service.fetchSiswa();
-      setState(() {
-        siswaList = data;
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() => isLoading = false);
       if (mounted) {
+        setState(() {
+          siswaList = List<Map<String, dynamic>>.from(data['data'] ?? []);
+          isLoading = false;
+        });
+        debugPrint('Loaded ${siswaList.length} siswa');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal memuat data: $e'),
+            content: Text('Gagal memuat data: ${e.toString()}'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -71,11 +74,11 @@ class _DashboardPageState extends State<DashboardPage> {
         onPressed: () async {
           final result = await Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => const SplashScreen (), 
+              builder: (context) => const SiswaPage(),
             ),
           );
-          if (result == true) {
-            _loadData(); // Muat ulang data jika data berhasil disimpan dari SiswaPage
+          if (result == true && mounted) {
+            await _loadData();
           }
         },
         backgroundColor: Colors.orange,
@@ -112,7 +115,7 @@ class _DashboardPageState extends State<DashboardPage> {
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 10,
             offset: const Offset(0, 3),
@@ -162,9 +165,9 @@ class _DashboardPageState extends State<DashboardPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -217,7 +220,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              siswaList.isEmpty 
+              siswaList.isEmpty
                   ? 'Belum ada data siswa'
                   : 'Tidak ada hasil pencarian',
               style: TextStyle(
@@ -371,7 +374,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                '${siswa['dusun_siswa']?['nama_dusun'] ?? ''}, ${siswa['dusun_siswa']?['desa']?['nama_desa'] ?? ''}, ${siswa['dusun_siswa']?['desa']?['kecamatan']?['kabupaten']?['provinsi']?['nama_provinsi'] ?? ''}',
+                '${siswa['alamat_dusun'] ?? ''}, ${siswa['alamat_desa'] ?? ''}, ${siswa['alamat_provinsi'] ?? ''}',
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 13,
@@ -390,9 +393,9 @@ class _DashboardPageState extends State<DashboardPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -415,7 +418,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void _showDetailDialog(Map<String, dynamic> siswa) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Row(
           children: [
             CircleAvatar(
@@ -455,11 +458,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 _buildDetailSection('Alamat Siswa', [
                   _buildDetailItem('Jalan', siswa['alamat_jalan']),
                   _buildDetailItem('RT', siswa['alamat_rt']),
-                  _buildDetailItem('Dusun', siswa['dusun_siswa']?['nama_dusun']),
-                  _buildDetailItem('Desa', siswa['dusun_siswa']?['desa']?['nama_desa']),
-                  _buildDetailItem('Kecamatan', siswa['dusun_siswa']?['desa']?['kecamatan']?['nama_kecamatan']),
-                  _buildDetailItem('Kabupaten', siswa['dusun_siswa']?['desa']?['kecamatan']?['kabupaten']?['nama_kabupaten']),
-                  _buildDetailItem('Provinsi', siswa['dusun_siswa']?['desa']?['kecamatan']?['kabupaten']?['provinsi']?['nama_provinsi']),
+                  _buildDetailItem('Dusun', siswa['alamat_dusun']),
+                  _buildDetailItem('Desa', siswa['alamat_desa']),
+                  _buildDetailItem('Kecamatan', siswa['alamat_kecamatan']),
+                  _buildDetailItem('Kabupaten', siswa['alamat_kabupaten']),
+                  _buildDetailItem('Provinsi', siswa['alamat_provinsi']),
+                  _buildDetailItem('Kode Pos', siswa['alamat_kode_pos']),
                 ]),
                 const SizedBox(height: 16),
                 _buildDetailSection('Data Orang Tua/Wali', [
@@ -471,6 +475,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   _buildDetailItem('Kecamatan', siswa['alamat_kecamatan_ortu']),
                   _buildDetailItem('Kabupaten', siswa['alamat_kabupaten_ortu']),
                   _buildDetailItem('Provinsi', siswa['alamat_provinsi_ortu']),
+                  _buildDetailItem('Kode Pos', siswa['alamat_kode_pos_ortu']),
                 ]),
               ],
             ),
@@ -478,12 +483,12 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Tutup'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
               _showEditDialog(siswa);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
@@ -511,9 +516,9 @@ class _DashboardPageState extends State<DashboardPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.orange.withOpacity(0.05),
+            color: Colors.orange.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.orange.withOpacity(0.2)),
+            border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,7 +532,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildDetailItem(String label, dynamic value) {
     final displayValue = value?.toString().isNotEmpty == true ? value.toString() : 'Tidak diisi';
     final isEmpty = value?.toString().isEmpty != false;
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -571,7 +576,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Edit Data Siswa'),
         content: SizedBox(
           width: double.maxFinite,
@@ -619,7 +624,7 @@ class _DashboardPageState extends State<DashboardPage> {
           TextButton(
             onPressed: () {
               controllers.forEach((key, controller) => controller.dispose());
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
             },
             child: const Text('Batal'),
           ),
@@ -641,29 +646,45 @@ class _DashboardPageState extends State<DashboardPage> {
                     updatedData['agama'] = selectedAgama;
                   }
 
-                  await service.updateSiswa(siswa['id'], updatedData);
+                  final response = await service.updateSiswa(siswa['id'], updatedData);
 
                   controllers.forEach((key, controller) => controller.dispose());
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Data berhasil diupdate'),
-                        backgroundColor: Colors.green,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                    _loadData();
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                    if (response['success'] == true) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Data berhasil diupdate'),
+                            backgroundColor: Colors.green,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        await _loadData();
+                      }
+                    } else {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(response['message'] ?? 'Gagal update data'),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
                   }
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Gagal update: $e'),
-                        backgroundColor: Colors.red,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                  if (dialogContext.mounted) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Gagal update: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
                   }
                 }
               }
@@ -730,7 +751,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void _showDeleteDialog(Map<String, dynamic> siswa) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Row(
           children: [
             Icon(Icons.warning, color: Colors.red),
@@ -743,33 +764,49 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Batal'),
           ),
           ElevatedButton(
             onPressed: () async {
               try {
-                await service.deleteSiswa(siswa['id']);
-                if (mounted) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Data berhasil dihapus'),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  _loadData();
+                final response = await service.deleteSiswa(siswa['id']);
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                  if (response['success'] == true) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Data berhasil dihapus'),
+                          backgroundColor: Colors.green,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                      await _loadData();
+                    }
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(response['message'] ?? 'Gagal hapus data'),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 }
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Gagal hapus: $e'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                if (dialogContext.mounted) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Gagal hapus: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                 }
               }
             },

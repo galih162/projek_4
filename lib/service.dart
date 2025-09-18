@@ -1,217 +1,471 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService {
   final supabase = Supabase.instance.client;
+  final Duration _timeout = const Duration(seconds: 10);
+  final int _maxRetries = 3;
 
-  /// Inserts student data into the 'data_siswa' table.
-  Future<void> insertSiswa(Map<String, dynamic> data) async {
+  /// Memeriksa koneksi internet
+  Future<bool> _checkInternetConnection() async {
     try {
-      print('Mengirim data ke Supabase: $data');
-      await supabase.from('data_siswa').insert(data);
-      print('Data siswa berhasil disimpan');
-    } catch (e) {
-      print('Error di insertSiswa: $e');
-      if (e is PostgrestException) {
-        throw _handlePostgrestException(e);
-      } else {
-        throw Exception('Gagal menyimpan data: ${e.toString()}');
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        return false;
       }
-    }
-  }
 
-  /// Fetches all student data from the 'data_siswa' table.
-  Future<List<Map<String, dynamic>>> fetchSiswa() async {
-    try {
-      final response = await supabase.from('data_siswa').select();
-      return List<Map<String, dynamic>>.from(response);
-    } catch (e) {
-      print('Error di fetchSiswa: $e');
-      if (e is PostgrestException) {
-        throw _handlePostgrestException(e);
-      } else {
-        throw Exception('Gagal mengambil data: ${e.toString()}');
-      }
-    }
-  }
-
-  /// Updates student data in the 'data_siswa' table by ID.
-  Future<void> updateSiswa(int id, Map<String, dynamic> data) async {
-    try {
-      print('Mengupdate data ID $id: $data');
-      await supabase.from('data_siswa').update(data).eq('id', id);
-      print('Data siswa ID $id berhasil diupdate');
-    } catch (e) {
-      print('Error di updateSiswa: $e');
-      if (e is PostgrestException) {
-        throw _handlePostgrestException(e);
-      } else {
-        throw Exception('Gagal mengupdate data: ${e.toString()}');
-      }
-    }
-  }
-
-  /// Deletes student data from the 'data_siswa' table by ID.
-  Future<void> deleteSiswa(int id) async {
-    try {
-      print('Menghapus data ID: $id');
-      await supabase.from('data_siswa').delete().eq('id', id);
-      print('Data siswa ID $id berhasil dihapus');
-    } catch (e) {
-      print('Error di deleteSiswa: $e');
-      if (e is PostgrestException) {
-        throw _handlePostgrestException(e);
-      } else {
-        throw Exception('Gagal menghapus data: ${e.toString()}');
-      }
-    }
-  }
-
-  /// Searches for dusun based on a keyword and returns related address data.
-  Future<List<Map<String, dynamic>>> searchDusun(String keyword) async {
-    try {
-      final response = await supabase
-          .from('dusun')
-          .select('''
-            id,
-            nama_dusun,
-            kode_pos,
-            desa:desa_id (
-              nama_desa,
-              kecamatan:kecamatan_id (
-                nama_kecamatan,
-                kabupaten:kabupaten_id (
-                  nama_kabupaten,
-                  provinsi:provinsi_id (
-                    nama_provinsi
-                  )
-                )
-              )
-            )
-          ''')
-          .ilike('nama_dusun', '%$keyword%')
-          .limit(10);
-
-      // Map the response to a simplified structure for UI
-      return (response as List).map<Map<String, dynamic>>((d) {
-        return {
-          'id': d['id'],
-          'dusun': d['nama_dusun'] ?? '',
-          'kode_pos': d['kode_pos']?.toString() ?? '',
-          'desa': d['desa']?['nama_desa'] ?? '',
-          'kecamatan': d['desa']?['kecamatan']?['nama_kecamatan'] ?? '',
-          'kabupaten': d['desa']?['kecamatan']?['kabupaten']?['nama_kabupaten'] ?? '',
-          'provinsi': d['desa']?['kecamatan']?['kabupaten']?['provinsi']?['nama_provinsi'] ?? '',
-        };
-      }).toList();
-    } catch (e) {
-      print('Error di searchDusun: $e');
-      if (e is PostgrestException) {
-        throw _handlePostgrestException(e);
-      } else {
-        throw Exception('Gagal mencari dusun: ${e.toString()}');
-      }
-    }
-  }
-
-  /// Fetches all dusun with related address data.
-  Future<List<Map<String, dynamic>>> fetchDusunWithRelations() async {
-    try {
-      final response = await supabase
-          .from('dusun')
-          .select('''
-            id,
-            nama_dusun,
-            desa:desa_id (
-              id,
-              nama_desa,
-              kecamatan:kecamatan_id (
-                id,
-                nama_kecamatan,
-                kabupaten:kabupaten_id (
-                  id,
-                  nama_kabupaten,
-                  provinsi:provinsi_id (
-                    id,
-                    nama_provinsi
-                  )
-                )
-              )
-            )
-          ''');
-      return List<Map<String, dynamic>>.from(response);
-    } catch (e) {
-      print('Error di fetchDusunWithRelations: $e');
-      if (e is PostgrestException) {
-        throw _handlePostgrestException(e);
-      } else {
-        throw Exception('Gagal mengambil data dusun: ${e.toString()}');
-      }
-    }
-  }
-
-  /// Fetches complete address data by dusun ID.
-  Future<Map<String, dynamic>?> fetchAlamatByDusunId(int dusunId) async {
-    try {
-      final response = await supabase
-          .from('dusun')
-          .select('''
-            id,
-            nama_dusun,
-            desa:desa_id (
-              nama_desa,
-              kecamatan:kecamatan_id (
-                nama_kecamatan,
-                kabupaten:kabupaten_id (
-                  nama_kabupaten,
-                  provinsi:provinsi_id (
-                    nama_provinsi
-                  )
-                )
-              )
-            )
-          ''')
-          .eq('id', dusunId)
-          .single();
-      return Map<String, dynamic>.from(response);
-    } catch (e) {
-      print('Error di fetchAlamatByDusunId: $e');
-      if (e is PostgrestException) {
-        throw _handlePostgrestException(e);
-      } else {
-        throw Exception('Gagal mengambil alamat: ${e.toString()}');
-      }
-    }
-  }
-
-  /// Tests the connection to Supabase by performing a simple query.
-  Future<bool> testConnection() async {
-    try {
-      await supabase.from('data_siswa').select().limit(1);
-      return true;
-    } catch (_) {
+      // Verifikasi koneksi dengan mencoba menghubungi server
+      final result = await InternetAddress.lookup('google.com').timeout(Duration(seconds: 5));
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
+    } on TimeoutException catch (_) {
       return false;
     }
   }
 
-  /// Handles Postgrest exceptions and returns user-friendly error messages.
-  String _handlePostgrestException(PostgrestException e) {
-    switch (e.code) {
-      case '23505':
-        return 'Data sudah ada (duplikat).';
-      case '23502':
-        final field = _extractFieldFromError(e.message);
-        return 'Field $field wajib diisi.';
-      case '23503':
-        return 'Data referensi tidak valid.';
-      default:
-        return 'Error database: ${e.message}';
+  /// Menangani error dengan pesan yang lebih spesifik
+  Map<String, dynamic> _handleError(dynamic e, String operation) {
+    String message;
+    String errorCode;
+    bool canRetry = false;
+
+    if (e is SocketException || e is TimeoutException) {
+      message = 'Tidak ada koneksi internet saat $operation data. Silakan periksa koneksi Anda.';
+      errorCode = 'no_connection';
+      canRetry = true;
+    } else if (e is PostgrestException) {
+      switch (e.code) {
+        case 'PGRST301': // Invalid data or schema mismatch
+          message = 'Data tidak valid atau tidak sesuai dengan struktur database saat $operation.';
+          errorCode = 'invalid_data';
+          canRetry = false;
+          break;
+        case '42501': // Insufficient privileges
+          message = 'Anda tidak memiliki izin untuk $operation data.';
+          errorCode = 'permission_denied';
+          canRetry = false;
+          break;
+        case 'PGRST116': // Duplicate key or unique constraint violation
+          message = 'Data duplikat (misalnya, NISN sudah ada) saat $operation.';
+          errorCode = 'duplicate_key';
+          canRetry = false;
+          break;
+        default:
+          message = 'Kesalahan server saat $operation: ${e.message}';
+          errorCode = 'server_error';
+          canRetry = true;
+      }
+    } else {
+      message = 'Terjadi kesalahan tak terduga saat $operation: ${e.toString()}';
+      errorCode = 'unknown_error';
+      canRetry = true;
     }
+
+    return {
+      'success': false,
+      'message': message,
+      'error_code': errorCode,
+      'can_retry': canRetry,
+      'data': []
+    };
   }
 
-  /// Extracts the field name from a Postgrest error message.
-  String _extractFieldFromError(String message) {
-    final regex = RegExp(r'column "([^"]+)"');
-    final match = regex.firstMatch(message);
-    return match?.group(1) ?? 'tidak diketahui';
+  /// Menjalankan operasi dengan retry mechanism
+  Future<Map<String, dynamic>> _retryOperation(Future<Map<String, dynamic>> Function() operation) async {
+    int attempt = 0;
+    while (attempt < _maxRetries) {
+      try {
+        return await operation();
+      } catch (e) {
+        attempt++;
+        if (attempt == _maxRetries) {
+          return _handleError(e, 'menjalankan operasi');
+        }
+        await Future.delayed(Duration(seconds: attempt * 2));
+      }
+    }
+    return {
+      'success': false,
+      'message': 'Gagal setelah $_maxRetries percobaan.',
+      'error_code': 'max_retries_exceeded',
+      'can_retry': false,
+      'data': []
+    };
+  }
+
+  /// Mengambil data siswa
+  Future<Map<String, dynamic>> fetchSiswa() async {
+    bool hasConnection = await _checkInternetConnection();
+    if (!hasConnection) {
+      return {
+        'success': false,
+        'message': 'Tidak ada koneksi internet. Data tidak dapat dimuat.',
+        'error_code': 'no_connection',
+        'can_retry': true,
+        'data': <Map<String, dynamic>>[]
+      };
+    }
+
+    return await _retryOperation(() async {
+      try {
+        final response = await supabase
+            .from('data_siswa')
+            .select('''
+              *,
+              dusun_siswa:dusun_id (
+                nama_dusun,
+                kode_pos,
+                desa:desa_id (
+                  nama_desa,
+                  kecamatan:kecamatan_id (
+                    nama_kecamatan,
+                    kabupaten:kabupaten_id (
+                      nama_kabupaten,
+                      provinsi:provinsi_id (
+                        nama_provinsi
+                      )
+                    )
+                  )
+                )
+              )
+            ''')
+            .timeout(_timeout);
+
+        return {
+          'success': true,
+          'data': List<Map<String, dynamic>>.from(response),
+          'message': 'Data berhasil dimuat',
+          'can_retry': false
+        };
+      } catch (e) {
+        print('Error di fetchSiswa: $e');
+        final errorResult = _handleError(e, 'memuat');
+        errorResult['data'] = <Map<String, dynamic>>[];
+        return errorResult;
+      }
+    });
+  }
+
+  /// Menambahkan data siswa
+  Future<Map<String, dynamic>> insertSiswa(Map<String, dynamic> data) async {
+    bool hasConnection = await _checkInternetConnection();
+    if (!hasConnection) {
+      return {
+        'success': false,
+        'message': 'Tidak ada koneksi internet. Data tidak dapat disimpan. Silakan coba lagi nanti.',
+        'error_code': 'no_connection',
+        'can_retry': true,
+        'data': []
+      };
+    }
+
+    return await _retryOperation(() async {
+      try {
+        print('Mengirim data ke Supabase: $data');
+        
+        if (data.isEmpty) {
+          return {
+            'success': false,
+            'message': 'Data tidak boleh kosong.',
+            'error_code': 'empty_data',
+            'can_retry': false,
+            'data': []
+          };
+        }
+
+        // Validasi data wajib
+        final requiredFields = ['nisn', 'nama_lengkap', 'jenis_kelamin', 'agama', 'tempat_lahir', 'tanggal_lahir', 'nik', 'alamat_jalan', 'alamat_rt', 'alamat_desa', 'alamat_kabupaten', 'alamat_provinsi'];
+        final missingFields = requiredFields.where((field) => !data.containsKey(field) || data[field] == null || data[field].toString().trim().isEmpty).toList();
+        if (missingFields.isNotEmpty) {
+          return {
+            'success': false,
+            'message': 'Field wajib berikut tidak lengkap: ${missingFields.join(', ')}',
+            'error_code': 'missing_required_fields',
+            'can_retry': false,
+            'data': []
+          };
+        }
+
+        // Validasi panjang NISN dan NIK
+        if (data['nisn'].toString().length != 10) {
+          return {
+            'success': false,
+            'message': 'NISN harus 10 digit.',
+            'error_code': 'invalid_nisn',
+            'can_retry': false,
+            'data': []
+          };
+        }
+        if (data['nik'].toString().length != 16) {
+          return {
+            'success': false,
+            'message': 'NIK harus 16 digit.',
+            'error_code': 'invalid_nik',
+            'can_retry': false,
+            'data': []
+          };
+        }
+
+        // Cari dusun_id untuk alamat_dusun jika ada
+        if (data.containsKey('alamat_dusun') && data['alamat_dusun'] != null && data['alamat_dusun'].toString().trim().isNotEmpty) {
+          try {
+            final dusunResponse = await supabase
+                .from('dusun')
+                .select('id')
+                .eq('nama_dusun', data['alamat_dusun'].toString().trim())
+                .maybeSingle()
+                .timeout(_timeout);
+            if (dusunResponse != null) {
+              data['dusun_id'] = dusunResponse['id'];
+            } else {
+              return {
+                'success': false,
+                'message': 'Dusun "${data['alamat_dusun']}" tidak ditemukan di database.',
+                'error_code': 'dusun_not_found',
+                'can_retry': false,
+                'data': []
+              };
+            }
+            data.remove('alamat_dusun');
+          } catch (e) {
+            return _handleError(e, 'mencari dusun');
+          }
+        }
+
+        // Cari dusun_id untuk alamat_dusun_ortu jika ada
+        if (data.containsKey('alamat_dusun_ortu') && data['alamat_dusun_ortu'] != null && data['alamat_dusun_ortu'].toString().trim().isNotEmpty) {
+          try {
+            final dusunResponse = await supabase
+                .from('dusun')
+                .select('id')
+                .eq('nama_dusun', data['alamat_dusun_ortu'].toString().trim())
+                .maybeSingle()
+                .timeout(_timeout);
+            if (dusunResponse != null) {
+              data['dusun_id_ortu'] = dusunResponse['id'];
+            } else {
+              return {
+                'success': false,
+                'message': 'Dusun orang tua "${data['alamat_dusun_ortu']}" tidak ditemukan di database.',
+                'error_code': 'dusun_ortu_not_found',
+                'can_retry': false,
+                'data': []
+              };
+            }
+            data.remove('alamat_dusun_ortu');
+          } catch (e) {
+            return _handleError(e, 'mencari dusun orang tua');
+          }
+        }
+
+        final response = await supabase
+            .from('data_siswa')
+            .insert(data)
+            .select()
+            .timeout(_timeout);
+            
+        print('Data siswa berhasil disimpan: $response');
+        
+        return {
+          'success': true,
+          'message': 'Data berhasil disimpan',
+          'data': List<Map<String, dynamic>>.from(response),
+          'can_retry': false
+        };
+      } catch (e) {
+        print('Error di insertSiswa: $e');
+        return _handleError(e, 'menyimpan');
+      }
+    });
+  }
+
+  /// Memperbarui data siswa
+  Future<Map<String, dynamic>> updateSiswa(int id, Map<String, dynamic> data) async {
+    bool hasConnection = await _checkInternetConnection();
+    if (!hasConnection) {
+      return {
+        'success': false,
+        'message': 'Tidak ada koneksi internet. Data tidak dapat diupdate.',
+        'error_code': 'no_connection',
+        'can_retry': true,
+        'data': []
+      };
+    }
+
+    return await _retryOperation(() async {
+      try {
+        print('Mengupdate data ID $id: $data');
+        
+        if (data.isEmpty) {
+          return {
+            'success': false,
+            'message': 'Data update tidak boleh kosong.',
+            'error_code': 'empty_data',
+            'can_retry': false,
+            'data': []
+          };
+        }
+
+        // Cari dusun_id untuk alamat_dusun jika ada
+        if (data.containsKey('alamat_dusun') && data['alamat_dusun'] != null && data['alamat_dusun'].toString().trim().isNotEmpty) {
+          try {
+            final dusunResponse = await supabase
+                .from('dusun')
+                .select('id')
+                .eq('nama_dusun', data['alamat_dusun'].toString().trim())
+                .maybeSingle()
+                .timeout(_timeout);
+            if (dusunResponse != null) {
+              data['dusun_id'] = dusunResponse['id'];
+            } else {
+              return {
+                'success': false,
+                'message': 'Dusun "${data['alamat_dusun']}" tidak ditemukan di database.',
+                'error_code': 'dusun_not_found',
+                'can_retry': false,
+                'data': []
+              };
+            }
+            data.remove('alamat_dusun');
+          } catch (e) {
+            return _handleError(e, 'mencari dusun');
+          }
+        }
+
+        // Cari dusun_id untuk alamat_dusun_ortu jika ada
+        if (data.containsKey('alamat_dusun_ortu') && data['alamat_dusun_ortu'] != null && data['alamat_dusun_ortu'].toString().trim().isNotEmpty) {
+          try {
+            final dusunResponse = await supabase
+                .from('dusun')
+                .select('id')
+                .eq('nama_dusun', data['alamat_dusun_ortu'].toString().trim())
+                .maybeSingle()
+                .timeout(_timeout);
+            if (dusunResponse != null) {
+              data['dusun_id_ortu'] = dusunResponse['id'];
+            } else {
+              return {
+                'success': false,
+                'message': 'Dusun orang tua "${data['alamat_dusun_ortu']}" tidak ditemukan di database.',
+                'error_code': 'dusun_ortu_not_found',
+                'can_retry': false,
+                'data': []
+              };
+            }
+            data.remove('alamat_dusun_ortu');
+          } catch (e) {
+            return _handleError(e, 'mencari dusun orang tua');
+          }
+        }
+
+        await supabase
+            .from('data_siswa')
+            .update(data)
+            .eq('id', id)
+            .timeout(_timeout);
+            
+        print('Data siswa ID $id berhasil diupdate');
+        
+        return {
+          'success': true,
+          'message': 'Data berhasil diupdate',
+          'can_retry': false,
+          'data': []
+        };
+      } catch (e) {
+        print('Error di updateSiswa: $e');
+        return _handleError(e, 'mengupdate');
+      }
+    });
+  }
+
+  /// Menghapus data siswa
+  Future<Map<String, dynamic>> deleteSiswa(int id) async {
+    bool hasConnection = await _checkInternetConnection();
+    if (!hasConnection) {
+      return {
+        'success': false,
+        'message': 'Tidak ada koneksi internet. Data tidak dapat dihapus.',
+        'error_code': 'no_connection',
+        'can_retry': true,
+        'data': []
+      };
+    }
+
+    return await _retryOperation(() async {
+      try {
+        await supabase
+            .from('data_siswa')
+            .delete()
+            .eq('id', id)
+            .timeout(_timeout);
+            
+        print('Data siswa ID $id berhasil dihapus');
+        
+        return {
+          'success': true,
+          'message': 'Data berhasil dihapus',
+          'can_retry': false,
+          'data': []
+        };
+      } catch (e) {
+        print('Error di deleteSiswa: $e');
+        return _handleError(e, 'menghapus');
+      }
+    });
+  }
+
+  /// Mencari dusun
+  Future<Map<String, dynamic>> searchDusun(String query) async {
+    bool hasConnection = await _checkInternetConnection();
+    if (!hasConnection) {
+      return {
+        'success': false,
+        'message': 'Tidak ada koneksi internet. Tidak dapat mencari dusun.',
+        'error_code': 'no_connection',
+        'can_retry': true,
+        'data': []
+      };
+    }
+
+    return await _retryOperation(() async {
+      try {
+        final response = await supabase
+            .from('dusun')
+            .select('''
+              id,
+              nama_dusun,
+              kode_pos,
+              desa:desa_id (
+                nama_desa,
+                kecamatan:kecamatan_id (
+                  nama_kecamatan,
+                  kabupaten:kabupaten_id (
+                    nama_kabupaten,
+                    provinsi:provinsi_id (
+                      nama_provinsi
+                    )
+                  )
+                )
+              )
+            ''')
+            .ilike('nama_dusun', '%$query%')
+            .limit(10)
+            .timeout(_timeout);
+
+        return {
+          'success': true,
+          'data': List<Map<String, dynamic>>.from(response),
+          'message': response.isEmpty ? 'Tidak ada dusun ditemukan' : 'Dusun berhasil ditemukan',
+          'can_retry': false
+        };
+      } catch (e) {
+        print('Error di searchDusun: $e');
+        return _handleError(e, 'mencari dusun');
+      }
+    });
   }
 }
