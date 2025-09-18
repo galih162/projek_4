@@ -1,7 +1,9 @@
+// Impor package Flutter untuk membangun UI
 import 'package:flutter/material.dart';
 import 'package:projek_4/service.dart';
 import 'package:projek_4/home/siswa_page.dart'; // Pastikan impor ini sesuai dengan lokasi file siswa_page.dart
 
+// Kelas utama untuk halaman dashboard siswa
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -9,27 +11,38 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
+// State untuk DashboardPage, mengelola data dan UI dinamis
 class _DashboardPageState extends State<DashboardPage> {
+  // Inisialisasi service untuk komunikasi dengan Supabase
   final SupabaseService service = SupabaseService();
+  // List untuk menyimpan data siswa dari Supabase
   List<Map<String, dynamic>> siswaList = [];
+  // Status loading untuk menampilkan indikator saat data dimuat
   bool isLoading = true;
+  // Query pencarian untuk memfilter siswa berdasarkan nama atau NISN
   String searchQuery = '';
 
+  // Inisialisasi state, memuat data saat widget pertama kali dibuat
   @override
   void initState() {
     super.initState();
     _loadData();
   }
 
+  // Fungsi untuk memuat data siswa dari Supabase
   Future<void> _loadData() async {
+    // Set state loading menjadi true
     setState(() => isLoading = true);
     try {
+      // Ambil data siswa dari Supabase
       final data = await service.fetchSiswa();
+      // Perbarui state dengan data yang diambil
       setState(() {
         siswaList = data;
         isLoading = false;
       });
     } catch (e) {
+      // Jika gagal, set loading false dan tampilkan pesan error
       setState(() => isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -43,8 +56,10 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  // Computed property untuk memfilter siswa berdasarkan searchQuery
   List<Map<String, dynamic>> get filteredSiswa {
     if (searchQuery.isEmpty) return siswaList;
+    // Filter siswa berdasarkan nama atau NISN (case-insensitive)
     return siswaList.where((siswa) {
       final nama = siswa['nama_lengkap']?.toString().toLowerCase() ?? '';
       final nisn = siswa['nisn']?.toString().toLowerCase() ?? '';
@@ -53,29 +68,34 @@ class _DashboardPageState extends State<DashboardPage> {
     }).toList();
   }
 
+  // Bangun UI utama halaman dashboard
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: _buildAppBar(),
+      backgroundColor: Colors.grey[50], // Warna latar belakang halaman
+      appBar: _buildAppBar(), // AppBar kustom
       body: Column(
         children: [
-          _buildSearchBar(),
-          _buildStatsCards(),
+          _buildSearchBar(), // Widget untuk kolom pencarian
+          _buildStatsCards(), // Widget untuk kartu statistik
+          // Expanded agar ListView mengisi sisa ruang
           Expanded(
             child: isLoading ? _buildLoadingWidget() : _buildDataList(),
           ),
         ],
       ),
+      // Tombol untuk menambah data siswa baru
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
+          // Navigasi ke SplashScreen sebagai transisi
           final result = await Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => const SplashScreen(), 
+              builder: (context) => const SplashScreen(), // Mengarah ke SplashScreen
             ),
           );
+          // Muat ulang data jika SplashScreen mengembalikan true
           if (result == true) {
-            _loadData(); // Muat ulang data jika data berhasil disimpan dari SiswaPage
+            _loadData(); // Muat ulang data jika data berhasil disimpan
           }
         },
         backgroundColor: Colors.orange,
@@ -84,6 +104,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Bangun AppBar dengan judul dan tombol refresh
   AppBar _buildAppBar() {
     return AppBar(
       title: const Text(
@@ -96,6 +117,7 @@ class _DashboardPageState extends State<DashboardPage> {
       backgroundColor: Colors.orange,
       elevation: 0,
       actions: [
+        // Tombol refresh untuk memuat ulang data
         IconButton(
           icon: const Icon(Icons.refresh, color: Colors.white),
           onPressed: _loadData,
@@ -104,6 +126,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Bangun kolom pencarian
   Widget _buildSearchBar() {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -120,6 +143,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       child: TextField(
+        // Perbarui searchQuery saat pengguna mengetik
         onChanged: (value) => setState(() => searchQuery = value),
         decoration: const InputDecoration(
           hintText: 'Cari berdasarkan nama atau NISN...',
@@ -131,11 +155,13 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Bangun kartu statistik untuk total dan siswa yang ditampilkan
   Widget _buildStatsCards() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
+          // Kartu untuk total siswa
           Expanded(
             child: _buildStatCard(
               'Total Siswa',
@@ -145,6 +171,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
           const SizedBox(width: 12),
+          // Kartu untuk siswa yang ditampilkan setelah filter
           Expanded(
             child: _buildStatCard(
               'Ditampilkan',
@@ -158,6 +185,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Bangun kartu statistik individual
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -191,6 +219,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Bangun widget loading saat data sedang dimuat
   Widget _buildLoadingWidget() {
     return const Center(
       child: Column(
@@ -204,6 +233,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Bangun daftar siswa atau pesan jika data kosong
   Widget _buildDataList() {
     if (filteredSiswa.isEmpty) {
       return Center(
@@ -240,6 +270,7 @@ class _DashboardPageState extends State<DashboardPage> {
       );
     }
 
+    // Tampilkan daftar siswa dalam ListView
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: filteredSiswa.length,
@@ -250,6 +281,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Bangun kartu untuk setiap siswa
   Widget _buildSiswaCard(Map<String, dynamic> siswa) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -259,7 +291,7 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _showDetailDialog(siswa),
+        onTap: () => _showDetailDialog(siswa), // Tampilkan detail saat kartu ditekan
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -267,6 +299,7 @@ class _DashboardPageState extends State<DashboardPage> {
             children: [
               Row(
                 children: [
+                  // Avatar dengan inisial nama siswa
                   CircleAvatar(
                     backgroundColor: Colors.orange,
                     radius: 25,
@@ -280,6 +313,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   ),
                   const SizedBox(width: 12),
+                  // Informasi nama dan NISN
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,6 +337,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       ],
                     ),
                   ),
+                  // Menu opsi untuk detail, edit, dan hapus
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, color: Colors.grey),
                     onSelected: (value) {
@@ -354,6 +389,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
               const SizedBox(height: 12),
+              // Chip untuk menampilkan jenis kelamin dan agama
               Row(
                 children: [
                   _buildInfoChip(
@@ -370,6 +406,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
               const SizedBox(height: 8),
+              // Alamat siswa dengan ellipsis untuk teks panjang
               Text(
                 '${siswa['dusun_siswa']?['nama_dusun'] ?? ''}, ${siswa['dusun_siswa']?['desa']?['nama_desa'] ?? ''}, ${siswa['dusun_siswa']?['desa']?['kecamatan']?['kabupaten']?['provinsi']?['nama_provinsi'] ?? ''}',
                 style: TextStyle(
@@ -386,6 +423,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Bangun chip untuk informasi seperti jenis kelamin dan agama
   Widget _buildInfoChip(String label, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -412,12 +450,14 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Tampilkan dialog untuk melihat detail siswa
   void _showDetailDialog(Map<String, dynamic> siswa) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
           children: [
+            // Avatar dengan inisial nama
             CircleAvatar(
               backgroundColor: Colors.orange,
               radius: 20,
@@ -441,6 +481,7 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Bagian data pribadi
                 _buildDetailSection('Data Pribadi', [
                   _buildDetailItem('NISN', siswa['nisn']),
                   _buildDetailItem('Nama Lengkap', siswa['nama_lengkap']),
@@ -452,6 +493,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   _buildDetailItem('No HP', siswa['no_hp']),
                 ]),
                 const SizedBox(height: 16),
+                // Bagian alamat siswa
                 _buildDetailSection('Alamat Siswa', [
                   _buildDetailItem('Jalan', siswa['alamat_jalan']),
                   _buildDetailItem('RT', siswa['alamat_rt']),
@@ -463,6 +505,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   _buildDetailItem('Kode Pos', siswa['alamat_kode_pos']),
                 ]),
                 const SizedBox(height: 16),
+                // Bagian data orang tua/wali
                 _buildDetailSection('Data Orang Tua/Wali', [
                   _buildDetailItem('Nama Ayah', siswa['nama_ayah']),
                   _buildDetailItem('Nama Ibu', siswa['nama_ibu']),
@@ -479,10 +522,12 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
         actions: [
+          // Tombol untuk menutup dialog
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Tutup'),
           ),
+          // Tombol untuk membuka dialog edit
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
@@ -496,6 +541,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Bangun seksi detail untuk data siswa
   Widget _buildDetailSection(String title, List<Widget> items) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,7 +572,9 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Bangun item detail untuk setiap field
   Widget _buildDetailItem(String label, dynamic value) {
+    // Tampilkan 'Tidak diisi' jika nilai kosong
     final displayValue = value?.toString().isNotEmpty == true ? value.toString() : 'Tidak diisi';
     final isEmpty = value?.toString().isEmpty != false;
     
@@ -559,16 +607,17 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // NEW IMPROVED EDIT DIALOG METHOD
+  // Tampilkan dialog untuk mengedit data siswa
   void _showEditDialog(Map<String, dynamic> siswa) {
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevent accidental dismissal
+      barrierDismissible: false, // Cegah dialog ditutup dengan tap di luar
       builder: (context) => _EditDialog(
         siswa: siswa,
         service: service,
         onSuccess: () {
           if (mounted) {
+            // Tampilkan pesan sukses dan muat ulang data
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Data berhasil diupdate'),
@@ -581,6 +630,7 @@ class _DashboardPageState extends State<DashboardPage> {
         },
         onError: (String error) {
           if (mounted) {
+            // Tampilkan pesan error jika gagal update
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Gagal update: $error'),
@@ -594,6 +644,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // Tampilkan dialog konfirmasi untuk menghapus data siswa
   void _showDeleteDialog(Map<String, dynamic> siswa) {
     showDialog(
       context: context,
@@ -609,16 +660,20 @@ class _DashboardPageState extends State<DashboardPage> {
           'Apakah Anda yakin ingin menghapus data siswa "${siswa['nama_lengkap']}"?\n\nTindakan ini tidak dapat dibatalkan.',
         ),
         actions: [
+          // Tombol batal
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Batal'),
           ),
+          // Tombol hapus
           ElevatedButton(
             onPressed: () async {
               try {
+                // Hapus data siswa dari Supabase
                 await service.deleteSiswa(siswa['id']);
                 if (mounted) {
                   Navigator.of(context).pop();
+                  // Tampilkan pesan sukses
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Data berhasil dihapus'),
@@ -630,6 +685,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 }
               } catch (e) {
                 if (mounted) {
+                  // Tampilkan pesan error jika gagal hapus
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Gagal hapus: $e'),
@@ -649,12 +705,12 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-// SEPARATE EDIT DIALOG WIDGET WITH AUTOFILL FEATURE
+// Widget terpisah untuk dialog edit dengan fitur autofill
 class _EditDialog extends StatefulWidget {
-  final Map<String, dynamic> siswa;
-  final SupabaseService service;
-  final VoidCallback onSuccess;
-  final Function(String) onError;
+  final Map<String, dynamic> siswa; // Data siswa yang akan diedit
+  final SupabaseService service; // Service untuk komunikasi dengan Supabase
+  final VoidCallback onSuccess; // Callback saat berhasil update
+  final Function(String) onError; // Callback saat gagal update
 
   const _EditDialog({
     required this.siswa,
@@ -668,21 +724,26 @@ class _EditDialog extends StatefulWidget {
 }
 
 class _EditDialogState extends State<_EditDialog> {
+  // Controller untuk field input
   final Map<String, TextEditingController> controllers = {};
+  // Key untuk validasi form
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  // Variabel untuk dropdown jenis kelamin dan agama
   String? selectedJenisKelamin;
   String? selectedAgama;
+  // Status loading untuk proses simpan
   bool isLoading = false;
   
-  // Autofill data
+  // Data untuk autofill alamat
   List<Map<String, dynamic>> dusunList = [];
   Map<String, dynamic>? selectedDusun;
   bool isLoadingDusun = false;
 
+  // Inisialisasi state, muat data awal
   @override
   void initState() {
     super.initState();
-    // Initialize all controllers with existing data
+    // Inisialisasi controller dengan data siswa
     widget.siswa.forEach((key, value) {
       controllers[key] = TextEditingController(text: value?.toString() ?? '');
     });
@@ -690,17 +751,18 @@ class _EditDialogState extends State<_EditDialog> {
     selectedJenisKelamin = widget.siswa['jenis_kelamin'];
     selectedAgama = widget.siswa['agama'];
     
-    // Load dusun data for autofill
+    // Muat data dusun untuk autofill
     _loadDusunData();
   }
 
+  // Dispose controller untuk mencegah memory leak
   @override
   void dispose() {
-    // Properly dispose all controllers
     controllers.forEach((key, controller) => controller.dispose());
     super.dispose();
   }
 
+  // Muat data dusun dari Supabase untuk dropdown autofill
   Future<void> _loadDusunData() async {
     setState(() => isLoadingDusun = true);
     try {
@@ -711,15 +773,16 @@ class _EditDialogState extends State<_EditDialog> {
       });
     } catch (e) {
       setState(() => isLoadingDusun = false);
-      print('Error loading dusun data: $e');
+      print('Error loading dusun data: $e'); // Log error ke console
     }
   }
 
+  // Handler saat dusun dipilih dari dropdown
   void _onDusunSelected(Map<String, dynamic>? dusun) {
     setState(() {
       selectedDusun = dusun;
       if (dusun != null) {
-        // Autofill related fields
+        // Isi otomatis field alamat berdasarkan data dusun
         controllers['alamat_dusun']?.text = dusun['nama_dusun'] ?? '';
         controllers['alamat_desa']?.text = dusun['desa']?['nama_desa'] ?? '';
         controllers['alamat_kecamatan']?.text = dusun['desa']?['kecamatan']?['nama_kecamatan'] ?? '';
@@ -734,6 +797,7 @@ class _EditDialogState extends State<_EditDialog> {
     });
   }
 
+  // Bangun UI dialog edit
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -746,14 +810,17 @@ class _EditDialogState extends State<_EditDialog> {
           child: SingleChildScrollView(
             child: Column(
               children: [
+                // Field input untuk data siswa
                 _buildEditField(controllers['nama_lengkap']!, 'Nama Lengkap'),
                 _buildEditField(controllers['nisn']!, 'NISN'),
+                // Dropdown untuk jenis kelamin
                 _buildEditDropdown(
                   'Jenis Kelamin',
                   selectedJenisKelamin,
                   ['Laki-laki', 'Perempuan'],
                   (value) => setState(() => selectedJenisKelamin = value),
                 ),
+                // Dropdown untuk agama
                 _buildEditDropdown(
                   'Agama',
                   selectedAgama,
@@ -765,10 +832,10 @@ class _EditDialogState extends State<_EditDialog> {
                 _buildEditField(controllers['alamat_jalan']!, 'Jalan'),
                 _buildEditField(controllers['alamat_rt']!, 'RT'),
                 
-                // DUSUN DROPDOWN WITH AUTOFILL
+                // Dropdown dusun dengan fitur autofill
                 _buildDusunDropdown(),
                 
-                // These fields will be auto-filled when dusun is selected
+                // Field alamat yang diisi otomatis
                 _buildEditField(controllers['alamat_dusun_ortu']!, 'Dusun Ortu', readOnly: true),
                 _buildEditField(controllers['alamat_desa_ortu']!, 'Desa Ortu', readOnly: true),
                 _buildEditField(controllers['alamat_kecamatan_ortu']!, 'Kecamatan Ortu', readOnly: true),
@@ -784,10 +851,12 @@ class _EditDialogState extends State<_EditDialog> {
         ),
       ),
       actions: [
+        // Tombol batal
         TextButton(
           onPressed: isLoading ? null : () => Navigator.of(context).pop(),
           child: const Text('Batal'),
         ),
+        // Tombol simpan dengan indikator loading
         ElevatedButton(
           onPressed: isLoading ? null : _handleSave,
           style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
@@ -806,6 +875,7 @@ class _EditDialogState extends State<_EditDialog> {
     );
   }
 
+  // Bangun dropdown untuk memilih dusun dengan autofill
   Widget _buildDusunDropdown() {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -854,6 +924,7 @@ class _EditDialogState extends State<_EditDialog> {
     );
   }
 
+  // Bangun field input dengan validasi
   Widget _buildEditField(TextEditingController controller, String label, {bool readOnly = false}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -872,11 +943,13 @@ class _EditDialogState extends State<_EditDialog> {
           prefixIcon: readOnly ? const Icon(Icons.lock, color: Colors.grey, size: 20) : null,
         ),
         validator: (value) {
+          // Validasi field wajib
           if (value == null || value.isEmpty) {
             if (label == 'NISN' || label == 'Nama Lengkap' || label == 'Jalan' || label == 'RT') {
               return '$label wajib diisi';
             }
           }
+          // Validasi panjang NISN
           if (label == 'NISN' && value != null && value.length != 10) {
             return 'NISN harus 10 digit';
           }
@@ -886,6 +959,7 @@ class _EditDialogState extends State<_EditDialog> {
     );
   }
 
+  // Bangun dropdown untuk field seperti jenis kelamin dan agama
   Widget _buildEditDropdown(String label, String? value, List<String> items, Function(String?) onChanged) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -910,12 +984,15 @@ class _EditDialogState extends State<_EditDialog> {
     );
   }
 
+  // Handler untuk menyimpan perubahan data siswa
   Future<void> _handleSave() async {
+    // Validasi form
     if (!(formKey.currentState?.validate() ?? false)) return;
 
     setState(() => isLoading = true);
 
     try {
+      // Kumpulkan data yang diubah
       final updatedData = <String, dynamic>{};
       controllers.forEach((key, controller) {
         if (controller.text.isNotEmpty) {
@@ -923,6 +1000,7 @@ class _EditDialogState extends State<_EditDialog> {
         }
       });
 
+      // Tambahkan data dari dropdown
       if (selectedJenisKelamin != null) {
         updatedData['jenis_kelamin'] = selectedJenisKelamin;
       }
@@ -930,6 +1008,7 @@ class _EditDialogState extends State<_EditDialog> {
         updatedData['agama'] = selectedAgama;
       }
 
+      // Update data di Supabase
       await widget.service.updateSiswa(widget.siswa['id'], updatedData);
 
       if (mounted) {

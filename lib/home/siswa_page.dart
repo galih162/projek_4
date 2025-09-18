@@ -1,7 +1,9 @@
+// Impor package yang diperlukan untuk UI, service Supabase, dan navigasi
 import 'package:flutter/material.dart';
 import 'package:projek_4/service.dart';
 import 'package:projek_4/screens/dasboard_page.dart';
 
+// Kelas utama untuk halaman SplashScreen, berfungsi sebagai form input data siswa
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -9,16 +11,19 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
+// State untuk SplashScreen dengan animasi dan pengelolaan form multi-step
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
+  // Inisialisasi service untuk komunikasi dengan Supabase
   final service = SupabaseService();
+  // Controller untuk animasi fade-in
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-
+  // Controller untuk navigasi halaman pada PageView
   int currentStep = 0;
   final PageController _pageController = PageController();
 
-  // Controllers
+  // Controller untuk setiap field input
   final TextEditingController nisnC = TextEditingController();
   final TextEditingController namaC = TextEditingController();
   final TextEditingController tempatLahirC = TextEditingController();
@@ -43,20 +48,21 @@ class _SplashScreenState extends State<SplashScreen>
   final TextEditingController provinsiOrtuC = TextEditingController();
   final TextEditingController kodePosOrtuC = TextEditingController();
 
-  // Dropdown values
+  // Variabel untuk dropdown jenis kelamin dan agama
   String? selectedJenisKelamin;
   String? selectedAgama;
 
-  // Auto-complete variables
-  List<Map<String, dynamic>> dusunSuggestions = [];
-  List<Map<String, dynamic>> ortuSuggestions = [];
-  bool isLoadingSuggestions = false;
-  OverlayEntry? _overlayEntry;
-  final LayerLink _layerLink = LayerLink();
-  final LayerLink _ortuLayerLink = LayerLink();
-  final FocusNode dusunFocusNode = FocusNode();
-  final FocusNode ortuFocusNode = FocusNode();
+  // Variabel untuk fitur autocomplete alamat
+  List<Map<String, dynamic>> dusunSuggestions = []; // Saran dusun siswa
+  List<Map<String, dynamic>> ortuSuggestions = []; // Saran dusun orang tua
+  bool isLoadingSuggestions = false; // Status loading untuk pencarian dusun
+  OverlayEntry? _overlayEntry; // Overlay untuk menampilkan saran
+  final LayerLink _layerLink = LayerLink(); // Link untuk posisi overlay siswa
+  final LayerLink _ortuLayerLink = LayerLink(); // Link untuk posisi overlay ortu
+  final FocusNode dusunFocusNode = FocusNode(); // Focus node untuk field dusun
+  final FocusNode ortuFocusNode = FocusNode(); // Focus node untuk field ortu
 
+  // Daftar opsi untuk dropdown
   final List<String> jenisKelamin = ['Laki-laki', 'Perempuan'];
   final List<String> agamaList = [
     'Islam',
@@ -67,6 +73,7 @@ class _SplashScreenState extends State<SplashScreen>
     'Konghucu',
   ];
 
+  // Inisialisasi animasi fade-in
   @override
   void initState() {
     super.initState();
@@ -77,9 +84,10 @@ class _SplashScreenState extends State<SplashScreen>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _animationController.forward();
+    _animationController.forward(); // Mulai animasi saat halaman dimuat
   }
 
+  // Dispose semua resource untuk mencegah memory leak
   @override
   void dispose() {
     _animationController.dispose();
@@ -88,7 +96,7 @@ class _SplashScreenState extends State<SplashScreen>
     ortuFocusNode.dispose();
     _hideOverlay();
 
-    // Dispose all controllers
+    // Dispose semua controller
     nisnC.dispose();
     namaC.dispose();
     tempatLahirC.dispose();
@@ -116,7 +124,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  // Show overlay suggestions untuk dusun siswa
+  // Tampilkan overlay saran dusun untuk siswa
   void _showOverlay() {
     _hideOverlay();
     _overlayEntry = OverlayEntry(
@@ -162,7 +170,7 @@ class _SplashScreenState extends State<SplashScreen>
                             debugPrint(
                               'Dusun clicked at index $index: ${dusun.toString()}',
                             );
-                            _fillAlamatFromDusun(dusun);
+                            _fillAlamatFromDusun(dusun); // Isi otomatis alamat
                             debugPrint(
                               'Calling _fillAlamatFromDusun for dusun: ${dusun['dusun']}',
                             );
@@ -222,7 +230,7 @@ class _SplashScreenState extends State<SplashScreen>
     debugPrint('Overlay shown with ${dusunSuggestions.length} suggestions');
   }
 
-  // Show overlay untuk alamat orang tua
+  // Tampilkan overlay saran dusun untuk orang tua
   void _showOverlayOrtu() {
     _hideOverlay();
     _overlayEntry = OverlayEntry(
@@ -266,7 +274,7 @@ class _SplashScreenState extends State<SplashScreen>
                         return InkWell(
                           onTap: () {
                             debugPrint('Ortu dusun clicked at index $index: ${dusun.toString()}');
-                            _fillAlamatFromOrtu(dusun);
+                            _fillAlamatFromOrtu(dusun); // Isi otomatis alamat ortu
                             debugPrint('Calling _fillAlamatFromOrtu for dusun: ${dusun['dusun']}');
                           },
                           splashColor: Colors.blue.withValues(alpha: 0.2),
@@ -323,14 +331,14 @@ class _SplashScreenState extends State<SplashScreen>
     debugPrint('Ortu overlay shown with ${ortuSuggestions.length} suggestions');
   }
 
-  // Hide overlay
+  // Sembunyikan overlay saran
   void _hideOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
     debugPrint('Overlay hidden');
   }
 
-  // Auto-fill alamat siswa berdasarkan pilihan dusun
+  // Isi otomatis field alamat siswa berdasarkan dusun yang dipilih
   void _fillAlamatFromDusun(Map<String, dynamic> selectedDusun) {
     debugPrint('=== _fillAlamatFromDusun called ===');
     debugPrint('Selected dusun data: ${selectedDusun.toString()}');
@@ -350,6 +358,7 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint('kabupaten=${kabupatenC.text}');
       debugPrint('provinsi=${provinsiC.text}');
       debugPrint('kodePos=${kodePosC.text}');
+      // Atur posisi kursor di akhir teks
       dusunC.selection = TextSelection.fromPosition(
         TextPosition(offset: dusunC.text.length),
       );
@@ -373,6 +382,7 @@ class _SplashScreenState extends State<SplashScreen>
     _hideOverlay();
     dusunFocusNode.unfocus();
 
+    // Tampilkan pesan sukses
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -385,7 +395,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // Auto-fill alamat orang tua berdasarkan pilihan dusun
+  // Isi otomatis field alamat orang tua berdasarkan dusun yang dipilih
   void _fillAlamatFromOrtu(Map<String, dynamic> selectedDusun) {
     debugPrint('=== _fillAlamatFromOrtu called ===');
     debugPrint('Selected ortu dusun data: ${selectedDusun.toString()}');
@@ -405,6 +415,7 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint('kabupaten=${kabupatenOrtuC.text}');
       debugPrint('provinsi=${provinsiOrtuC.text}');
       debugPrint('kodePos=${kodePosOrtuC.text}');
+      // Atur posisi kursor di akhir teks
       dusunOrtuC.selection = TextSelection.fromPosition(
         TextPosition(offset: dusunOrtuC.text.length),
       );
@@ -428,6 +439,7 @@ class _SplashScreenState extends State<SplashScreen>
     _hideOverlay();
     ortuFocusNode.unfocus();
 
+    // Tampilkan pesan sukses
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -440,7 +452,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // Search dusun dengan debounce
+  // Cari dusun untuk siswa dengan debounce
   Future<void> _searchDusun(String query) async {
     if (query.trim().isEmpty) {
       setState(() {
@@ -453,6 +465,7 @@ class _SplashScreenState extends State<SplashScreen>
     setState(() => isLoadingSuggestions = true);
 
     try {
+      // Tambahkan delay untuk mencegah pencarian berulang yang cepat
       await Future.delayed(const Duration(milliseconds: 300));
       final results = await service.searchDusun(query);
 
@@ -462,7 +475,7 @@ class _SplashScreenState extends State<SplashScreen>
         debugPrint('Keys available: ${result.keys.toList()}');
       }
 
-      _debugDusunData(results);
+      _debugDusunData(results); // Log data untuk debugging
 
       if (mounted) {
         setState(() {
@@ -473,11 +486,13 @@ class _SplashScreenState extends State<SplashScreen>
           );
         });
 
+        // Tampilkan overlay jika ada hasil
         if (dusunSuggestions.isNotEmpty) {
           _showOverlay();
         } else {
           _hideOverlay();
           if (query.length > 2) {
+            // Tampilkan pesan jika tidak ada hasil setelah query cukup panjang
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Tidak ada dusun yang ditemukan'),
@@ -493,6 +508,7 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint('Error searching dusun: $e');
       if (mounted) {
         setState(() => isLoadingSuggestions = false);
+        // Tampilkan pesan error
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error mencari dusun: ${e.toString()}'),
@@ -505,7 +521,7 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  // Search alamat orang tua dengan debounce
+  // Cari dusun untuk alamat orang tua dengan debounce
   Future<void> _searchOrtu(String query) async {
     if (query.trim().isEmpty) {
       setState(() {
@@ -518,6 +534,7 @@ class _SplashScreenState extends State<SplashScreen>
     setState(() => isLoadingSuggestions = true);
 
     try {
+      // Tambahkan delay untuk mencegah pencarian berulang yang cepat
       await Future.delayed(const Duration(milliseconds: 300));
       final results = await service.searchDusun(query);
 
@@ -527,7 +544,7 @@ class _SplashScreenState extends State<SplashScreen>
         debugPrint('Keys available: ${result.keys.toList()}');
       }
 
-      _debugDusunData(results);
+      _debugDusunData(results); // Log data untuk debugging
 
       if (mounted) {
         setState(() {
@@ -536,11 +553,13 @@ class _SplashScreenState extends State<SplashScreen>
           debugPrint('Updated ortuSuggestions with ${ortuSuggestions.length} items');
         });
 
+        // Tampilkan overlay jika ada hasil
         if (ortuSuggestions.isNotEmpty) {
           _showOverlayOrtu();
         } else {
           _hideOverlay();
           if (query.length > 2) {
+            // Tampilkan pesan jika tidak ada hasil setelah query cukup panjang
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Tidak ada dusun yang ditemukan untuk alamat orang tua'),
@@ -556,6 +575,7 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint('Error searching ortu: $e');
       if (mounted) {
         setState(() => isLoadingSuggestions = false);
+        // Tampilkan pesan error
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error mencari dusun untuk alamat orang tua: ${e.toString()}'),
@@ -568,7 +588,7 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  // Debug data dusun
+  // Log data dusun untuk debugging
   void _debugDusunData(List<Map<String, dynamic>> results) {
     debugPrint('=== DEBUG DUSUN DATA ===');
     debugPrint('Total results: ${results.length}');
@@ -579,10 +599,10 @@ class _SplashScreenState extends State<SplashScreen>
     debugPrint('========================');
   }
 
-  // Validation function
+  // Validasi data berdasarkan langkah saat ini
   bool _validateCurrentStep() {
     switch (currentStep) {
-      case 0: // Personal Info
+      case 0: // Langkah data pribadi
         if (nisnC.text.isEmpty ||
             namaC.text.isEmpty ||
             selectedJenisKelamin == null ||
@@ -623,7 +643,7 @@ class _SplashScreenState extends State<SplashScreen>
         }
         break;
 
-      case 1: // Address
+      case 1: // Langkah alamat
         if (jalanC.text.isEmpty ||
             rtC.text.isEmpty ||
             desaC.text.isEmpty ||
@@ -642,7 +662,7 @@ class _SplashScreenState extends State<SplashScreen>
         }
         break;
 
-      case 2: // Parent Info - Optional
+      case 2: // Langkah data orang tua (opsional)
         if (dusunOrtuC.text.isNotEmpty ||
             desaOrtuC.text.isNotEmpty ||
             kecamatanOrtuC.text.isNotEmpty ||
@@ -669,7 +689,9 @@ class _SplashScreenState extends State<SplashScreen>
     return true;
   }
 
+  // Simpan data siswa ke Supabase
   Future<void> _simpanData() async {
+    // Validasi semua langkah sebelum menyimpan
     for (int i = 0; i <= 2; i++) {
       int tempStep = currentStep;
       currentStep = i;
@@ -681,6 +703,7 @@ class _SplashScreenState extends State<SplashScreen>
     currentStep = 2;
 
     try {
+      // Tampilkan indikator loading
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -691,6 +714,7 @@ class _SplashScreenState extends State<SplashScreen>
         ),
       );
 
+      // Kumpulkan data dari field
       final data = {
         'nisn': nisnC.text.trim(),
         'nama_lengkap': namaC.text.trim(),
@@ -727,12 +751,15 @@ class _SplashScreenState extends State<SplashScreen>
             kodePosOrtuC.text.trim().isEmpty ? null : kodePosOrtuC.text.trim(),
       };
 
+      // Hapus field yang null atau kosong
       data.removeWhere((key, value) => value == null || value == '');
 
+      // Simpan data ke Supabase
       await service.insertSiswa(data);
 
       if (mounted) {
         Navigator.of(context).pop();
+        // Tampilkan dialog sukses
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -749,6 +776,7 @@ class _SplashScreenState extends State<SplashScreen>
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
+                  // Navigasi ke DashboardPage setelah sukses
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (_) => const DashboardPage()),
@@ -763,6 +791,7 @@ class _SplashScreenState extends State<SplashScreen>
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
+        // Tampilkan pesan error jika gagal menyimpan
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal simpan data: ${e.toString()}'),
@@ -775,6 +804,7 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
+  // Bangun UI utama dengan gradient background dan animasi
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -791,25 +821,25 @@ class _SplashScreenState extends State<SplashScreen>
             opacity: _fadeAnimation,
             child: Column(
               children: [
-                _buildHeader(),
-                _buildStepIndicator(),
+                _buildHeader(), // Header dengan ikon dan teks
+                _buildStepIndicator(), // Indikator langkah
                 Expanded(
                   child: PageView(
                     controller: _pageController,
                     onPageChanged: (index) {
                       setState(() {
                         currentStep = index;
-                        _hideOverlay();
+                        _hideOverlay(); // Sembunyikan overlay saat ganti halaman
                       });
                     },
                     children: [
-                      _buildPersonalInfoStep(),
-                      _buildAddressStep(),
-                      _buildParentInfoStep(),
+                      _buildPersonalInfoStep(), // Langkah data pribadi
+                      _buildAddressStep(), // Langkah alamat
+                      _buildParentInfoStep(), // Langkah data orang tua
                     ],
                   ),
                 ),
-                _buildBottomButtons(),
+                _buildBottomButtons(), // Tombol navigasi
               ],
             ),
           ),
@@ -818,6 +848,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun header dengan ikon dan teks
   Widget _buildHeader() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
@@ -855,6 +886,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun indikator langkah
   Widget _buildStepIndicator() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
@@ -878,6 +910,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun lingkaran untuk indikator langkah
   Widget _buildStepCircle(
     int step,
     String title,
@@ -913,6 +946,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun garis penghubung antar langkah
   Widget _buildStepLine(int step) {
     bool isActive = currentStep > step;
     return Container(
@@ -922,6 +956,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun langkah untuk data pribadi
   Widget _buildPersonalInfoStep() {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = screenWidth * 0.05;
@@ -998,6 +1033,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun langkah untuk alamat
   Widget _buildAddressStep() {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = screenWidth * 0.05;
@@ -1087,6 +1123,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun field autocomplete untuk dusun siswa
   Widget _buildDusunAutoComplete() {
     return CompositedTransformTarget(
       link: _layerLink,
@@ -1125,12 +1162,12 @@ class _SplashScreenState extends State<SplashScreen>
           ),
           onChanged: (value) {
             debugPrint('Dusun field changed: $value');
-            _searchDusun(value);
+            _searchDusun(value); // Cari dusun saat teks berubah
           },
           onTap: () {
             debugPrint('Dusun field tapped');
             if (dusunC.text.isNotEmpty && dusunSuggestions.isNotEmpty) {
-              _showOverlay();
+              _showOverlay(); // Tampilkan overlay jika ada saran
             }
           },
         ),
@@ -1138,6 +1175,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun langkah untuk data orang tua
   Widget _buildParentInfoStep() {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = screenWidth * 0.05;
@@ -1210,6 +1248,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun field autocomplete untuk dusun orang tua
   Widget _buildOrtuAutoComplete() {
     return CompositedTransformTarget(
       link: _ortuLayerLink,
@@ -1248,12 +1287,12 @@ class _SplashScreenState extends State<SplashScreen>
           ),
           onChanged: (value) {
             debugPrint('Ortu dusun field changed: $value');
-            _searchOrtu(value);
+            _searchOrtu(value); // Cari dusun saat teks berubah
           },
           onTap: () {
             debugPrint('Ortu dusun field tapped');
             if (dusunOrtuC.text.isNotEmpty && ortuSuggestions.isNotEmpty) {
-              _showOverlayOrtu();
+              _showOverlayOrtu(); // Tampilkan overlay jika ada saran
             }
           },
         ),
@@ -1261,6 +1300,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun field input dengan animasi
   Widget _buildAnimatedField(
     TextEditingController controller,
     String label,
@@ -1292,6 +1332,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun field readonly
   Widget _buildReadOnlyField(
     TextEditingController controller,
     String label,
@@ -1324,6 +1365,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun dropdown untuk field seperti jenis kelamin dan agama
   Widget _buildDropdownField(
     String label,
     String? selectedValue,
@@ -1350,6 +1392,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun field untuk input tanggal dengan date picker
   Widget _buildDateField(
     TextEditingController controller,
     String label,
@@ -1368,6 +1411,7 @@ class _SplashScreenState extends State<SplashScreen>
           fillColor: Colors.grey[50],
         ),
         onTap: () async {
+          // Tampilkan date picker untuk memilih tanggal
           final picked = await showDatePicker(
             context: context,
             initialDate: DateTime.now(),
@@ -1383,6 +1427,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // Bangun tombol navigasi (Sebelumnya/Selanjutnya/Simpan)
   Widget _buildBottomButtons() {
     final isLastStep = currentStep == 2;
     return Padding(
@@ -1399,7 +1444,7 @@ class _SplashScreenState extends State<SplashScreen>
                 if (currentStep > 0) {
                   setState(() {
                     currentStep--;
-                    _hideOverlay();
+                    _hideOverlay(); // Sembunyikan overlay saat mundur
                   });
                   _pageController.previousPage(
                     duration: const Duration(milliseconds: 300),
@@ -1418,7 +1463,7 @@ class _SplashScreenState extends State<SplashScreen>
                 if (_validateCurrentStep()) {
                   setState(() {
                     currentStep++;
-                    _hideOverlay();
+                    _hideOverlay(); // Sembunyikan overlay saat maju
                   });
                   _pageController.nextPage(
                     duration: const Duration(milliseconds: 300),
@@ -1426,7 +1471,7 @@ class _SplashScreenState extends State<SplashScreen>
                   );
                 }
               } else {
-                _simpanData();
+                _simpanData(); // Simpan data di langkah terakhir
               }
             },
             child: Text(isLastStep ? 'Simpan' : 'Selanjutnya'),
