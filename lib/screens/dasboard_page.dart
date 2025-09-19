@@ -830,17 +830,26 @@ class _EditDialogState extends State<_EditDialog> {
                 _buildEditField(controllers['tempat_lahir']!, 'Tempat Lahir'),
                 _buildEditField(controllers['tanggal_lahir']!, 'Tanggal Lahir'),
                 _buildEditField(controllers['alamat_jalan']!, 'Jalan'),
-                _buildEditField(controllers['alamat_rt']!, 'RT'),
+                _buildEditField(controllers['alamat_rt']!, 'RT/RW'),
                 
                 // Dropdown dusun dengan fitur autofill
                 _buildDusunDropdown(),
                 
                 // Field alamat yang diisi otomatis
+                _buildEditField(controllers['alamat_dusun']!, 'Dusun Siswa', readOnly: true),
+                _buildEditField(controllers['alamat_desa']!, 'Desa Siswa', readOnly: true),
+                _buildEditField(controllers['alamat_kecamatan']!, 'Kecamatan Siswa', readOnly: true),
+                _buildEditField(controllers['alamat_kabupaten']!, 'Kabupaten Siswa', readOnly: true),
+                _buildEditField(controllers['alamat_provinsi']!, 'Provinsi Siswa', readOnly: true),
+                _buildEditField(controllers['alamat_kode_pos']!, 'Kode pos Siswa', readOnly: true),
+                
                 _buildEditField(controllers['alamat_dusun_ortu']!, 'Dusun Ortu', readOnly: true),
                 _buildEditField(controllers['alamat_desa_ortu']!, 'Desa Ortu', readOnly: true),
                 _buildEditField(controllers['alamat_kecamatan_ortu']!, 'Kecamatan Ortu', readOnly: true),
                 _buildEditField(controllers['alamat_kabupaten_ortu']!, 'Kabupaten Ortu', readOnly: true),
                 _buildEditField(controllers['alamat_provinsi_ortu']!, 'Provinsi Ortu', readOnly: true),
+                _buildEditField(controllers['alamat_kode_pos_ortu']!, 'Kode pos Ortu', readOnly: true),
+
                 
                 _buildEditField(controllers['nama_ayah']!, 'Nama Ayah'),
                 _buildEditField(controllers['nama_ibu']!, 'Nama Ibu'),

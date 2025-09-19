@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:projek_4/home/siswa_page.dart';
+import 'package:projek_4/screens/dasboard_page.dart';
 
 void main() async {
   // supaya bisa async sebelum runApp
@@ -21,13 +21,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Form Data Siswa',
+      title: 'Halaman Dasboard Data Siswa',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const SplashScreen(), // halaman pertama yang muncul
+      home: const DashboardPage(), // halaman pertama yang muncul
     );
   }
 }
